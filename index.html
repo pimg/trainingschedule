@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Schedule Generator</title>
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           font-size: 15px; line-height: 1.5; color: #1a1a2e; background: #f0f2f7; }
+
+    /* === LAYOUT === */
+    .container { max-width: 980px; margin: 0 auto; padding: 0 20px 40px; }
+    header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+             color: white; padding: 20px 0; margin-bottom: 28px;
+             box-shadow: 0 2px 12px rgba(0,0,0,.18); }
+    header .container { display: flex; align-items: center; gap: 16px; padding-bottom: 0; }
+    header h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; }
+    header .subtitle { font-size: 0.82rem; opacity: 0.65; margin-top: 2px; }
+
+    /* === CARDS === */
+    .card { background: white; border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.07); padding: 24px; margin-bottom: 20px; }
+    .card > h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 18px; color: #1a1a2e;
+                 border-bottom: 2px solid #eaecf4; padding-bottom: 10px; }
+
+    /* === FORM ELEMENTS === */
+    label { font-size: 0.82rem; font-weight: 600; color: #555; display: block; margin-bottom: 4px; }
+    input[type="number"], input[type="text"], select {
+      width: 100%; padding: 7px 10px; border: 1.5px solid #d4d8e8; border-radius: 7px;
+      font-size: 0.88rem; font-family: inherit; background: white; color: #1a1a2e;
+      transition: border-color .15s, box-shadow .15s; }
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      outline: none; border-color: #4a90e2; box-shadow: 0 0 0 3px rgba(74,144,226,.13); }
+
+    /* === GRID LAYOUTS === */
+    .param-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 14px; }
+
+    /* === BUTTONS === */
+    button { cursor: pointer; border: none; border-radius: 7px; font-family: inherit;
+             font-size: 0.875rem; font-weight: 600; padding: 8px 14px;
+             transition: background .15s, transform .1s; }
+    button:active { transform: scale(.97); }
+    .btn-primary { background: #4a90e2; color: white; }
+    .btn-primary:hover { background: #357abd; }
+    .btn-success { background: #27ae60; color: white; font-size: 1.05rem; padding: 13px 32px; }
+    .btn-success:hover { background: #219a52; }
+    .btn-secondary { background: #eaecf4; color: #444; }
+    .btn-secondary:hover { background: #d8dbe8; }
+    .btn-danger { background: #fff0f0; color: #c0392b; border: 1px solid #fcc; font-size: 0.8rem; }
+    .btn-danger:hover { background: #fddede; }
+    .btn-small { padding: 5px 10px; font-size: 0.8rem; }
+    .btn-pdf { background: #e67e22; color: white; padding: 10px 22px; }
+    .btn-pdf:hover { background: #ca6f1e; }
+
+    /* === TEMPLATE BUILDER === */
+    .template-card { border: 1.5px solid #e4e8f0; border-radius: 10px; padding: 18px;
+                     margin-bottom: 16px; background: #f8f9fd; }
+    .template-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+                       margin-bottom: 14px; }
+    .template-name-input { flex: 1; min-width: 160px; font-size: 1rem; font-weight: 700;
+                           color: #1a1a2e; }
+    .phase-list { margin-bottom: 12px; }
+    .phase-row { border: 1.5px solid #e4e8f0; border-radius: 8px; padding: 14px;
+                 margin-bottom: 10px; background: white; position: relative; }
+    .phase-row-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .phase-type-badge { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                        letter-spacing: .06em; padding: 2px 7px; border-radius: 4px; color: white; }
+    .badge-steady   { background: #4a90e2; }
+    .badge-ramp     { background: #8e44ad; }
+    .badge-interval { background: #e67e22; }
+    .phase-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+                    gap: 12px; align-items: start; }
+    .field-group { }
+    .field-group label { font-size: 0.78rem; }
+
+    /* Duration widget */
+    .dur-wrap { display: flex; align-items: center; gap: 5px; }
+    .dur-wrap input { width: 54px; text-align: center; }
+    .dur-sep { color: #999; font-weight: 700; }
+    .dur-hint { font-size: 0.72rem; color: #999; }
+
+    /* Intensity reference widget */
+    .iref-wrap { display: flex; flex-direction: column; gap: 5px; }
+    .iref-wrap select { font-size: 0.82rem; }
+    .iref-val-row { display: flex; align-items: center; gap: 5px; }
+    .iref-val-row input { width: 65px; }
+    .iref-unit { font-size: 0.82rem; color: #666; }
+
+    /* Progression panel */
+    .progression-panel { margin: 12px 0 14px; padding: 14px 16px; background: #eef4ff;
+                         border-radius: 8px; border: 1.5px solid #c5d8f8; }
+    .progression-panel h4 { font-size: 0.82rem; font-weight: 700; color: #2c5fa8;
+                             margin-bottom: 12px; }
+    .prog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+    .prog-grid label { font-size: 0.78rem; }
+    .prog-grid input { width: 85px; }
+    .prog-hint { font-size: 0.72rem; color: #7a9ccf; margin-top: 3px; }
+
+    /* === ASSIGNMENT GRID === */
+    .assignment-grid-wrap { overflow-x: auto; margin-top: 4px; }
+    .assignment-table { border-collapse: collapse; min-width: 100%; }
+    .assignment-table th { background: #f0f2f9; font-size: 0.82rem; font-weight: 700;
+                           padding: 8px 12px; border: 1px solid #dde1ef; white-space: nowrap; }
+    .assignment-table td { border: 1px solid #dde1ef; padding: 5px 8px; }
+    .assignment-table .week-cell { background: #f7f8fc; font-size: 0.82rem; font-weight: 700;
+                                   white-space: nowrap; padding: 6px 12px; }
+    .assignment-table select { padding: 4px 6px; font-size: 0.8rem; min-width: 110px; }
+
+    /* === GENERATE BAR === */
+    .generate-bar { text-align: center; padding: 28px 0 12px; }
+
+    /* === ERROR BOX === */
+    .error-box { background: #fff2f2; border: 1.5px solid #f5c6c6; border-radius: 8px;
+                 padding: 14px 18px; margin-bottom: 16px; color: #b71c1c; font-size: 0.88rem; display: none; }
+    .error-box strong { display: block; margin-bottom: 6px; }
+    .error-box ul { padding-left: 18px; }
+    .error-box li { margin-bottom: 3px; }
+
+    /* === OUTPUT SECTION === */
+    #output-section { display: none; }
+    .output-toolbar { display: flex; align-items: center; justify-content: space-between;
+                      margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .output-toolbar h2 { font-size: 1.25rem; border: none; padding: 0; margin: 0; }
+
+    /* Zone legend */
+    .zone-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+                   font-size: 0.8rem; }
+    .zone-legend-item { display: flex; align-items: center; gap: 6px; }
+    .zone-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .dot-low      { background: #a5d6a7; border: 1px solid #66bb6a; }
+    .dot-moderate { background: #ffe082; border: 1px solid #ffca28; }
+    .dot-high     { background: #ef9a9a; border: 1px solid #ef5350; }
+
+    .week-section { margin-bottom: 36px; }
+    .week-section > h2 { font-size: 1.15rem; font-weight: 800; color: #1a1a2e;
+                         padding: 10px 0 8px; border-bottom: 3px solid #4a90e2;
+                         margin-bottom: 18px; }
+    .session-section { margin-bottom: 22px; }
+    .session-section > h3 { font-size: 0.92rem; font-weight: 700; color: #2c5fa8;
+                             margin-bottom: 8px; }
+    .session-meta { font-size: 0.78rem; color: #888; margin-bottom: 10px; }
+
+    /* === SCHEDULE TABLE === */
+    .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.87rem;
+                      margin-bottom: 8px; }
+    .schedule-table thead tr { background: #1a1a2e; color: white; }
+    .schedule-table th { padding: 9px 12px; text-align: left; font-size: 0.8rem;
+                         font-weight: 600; letter-spacing: .03em; }
+    .schedule-table td { padding: 7px 12px; border-bottom: 1px solid #eaecf4; }
+    .schedule-table tbody tr:last-child td { border-bottom: none; }
+    .zone-low      td { background: #e8f5e9; }
+    .zone-moderate td { background: #fffde7; }
+    .zone-high     td { background: #ffebee; }
+    .rpe-cell { min-width: 60px; width: 80px; }
+
+    /* === MISC === */
+    .section-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .help-text { font-size: 0.82rem; color: #777; margin-bottom: 14px; }
+    .no-templates-msg { color: #aaa; font-size: 0.88rem; font-style: italic; padding: 8px 0; }
+    hr.section-divider { border: none; border-top: 1.5px solid #eaecf4; margin: 20px 0; }
+
+    /* === PRINT STYLES === */
+    @media print {
+      #input-section, .no-print { display: none !important; }
+      #output-section { display: block !important; }
+      body { background: white; font-size: 10pt; }
+      .container { max-width: 100%; padding: 0 8pt; }
+      .card { box-shadow: none; border-radius: 0; padding: 0; margin-bottom: 0; }
+      .card > h2 { display: none; }
+      .output-toolbar { margin-bottom: 12pt; }
+      .output-toolbar h2 { font-size: 14pt; }
+      .zone-legend { margin-bottom: 10pt; }
+      .zone-dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .week-section { margin-bottom: 0; }
+      .week-section > h2 { page-break-before: always; font-size: 13pt; padding: 6pt 0;
+                            border-bottom: 2pt solid #333; margin-bottom: 12pt; }
+      .week-section:first-child > h2 { page-break-before: avoid; }
+      .session-section { page-break-inside: avoid; margin-bottom: 16pt; }
+      .session-section > h3 { font-size: 10pt; margin-bottom: 4pt; }
+      .session-meta { font-size: 8pt; }
+      .schedule-table { border-collapse: collapse; font-size: 9pt; }
+      .schedule-table thead tr { background: #333 !important;
+                                  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .schedule-table th { padding: 5pt 7pt; font-size: 8pt; }
+      .schedule-table td { padding: 4pt 7pt; border: 1pt solid #ccc; }
+      .zone-low td, .zone-moderate td, .zone-high td { background: none !important; }
+      .rpe-cell { width: 60pt; min-width: 60pt; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div>
+      <h1>Training Schedule Generator</h1>
+      <div class="subtitle">3-Zone Model &nbsp;|&nbsp; Power &amp; Heart Rate &nbsp;|&nbsp; Progressive Overload</div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ===== INPUT SECTION ===== -->
+  <div id="input-section">
+
+    <!-- 1. Athlete Parameters -->
+    <div class="card">
+      <h2>1. Athlete Parameters</h2>
+      <div class="param-grid">
+        <div>
+          <label for="restHR">Resting HR (bpm)</label>
+          <input type="number" id="restHR" min="30" max="100"
+                 oninput="state.athleteParams.restHR = +this.value">
+        </div>
+        <div>
+          <label for="maxHR">Max HR (bpm)</label>
+          <input type="number" id="maxHR" min="100" max="250"
+                 oninput="state.athleteParams.maxHR = +this.value">
+        </div>
+        <div>
+          <label for="maxPower">Max Power (W)</label>
+          <input type="number" id="maxPower" min="1" max="3000"
+                 oninput="state.athleteParams.maxPower = +this.value">
+        </div>
+        <div>
+          <label for="vt1Power">VT1 Power — week 1 (W)</label>
+          <input type="number" id="vt1Power" min="1" max="3000"
+                 oninput="state.athleteParams.vt1Power = +this.value">
+        </div>
+        <div>
+          <label for="vt1HR">VT1 HR (bpm)</label>
+          <input type="number" id="vt1HR" min="50" max="250"
+                 oninput="state.athleteParams.vt1HR = +this.value">
+        </div>
+        <div>
+          <label for="vt2Power">VT2 Power — week 1 (W)</label>
+          <input type="number" id="vt2Power" min="1" max="3000"
+                 oninput="state.athleteParams.vt2Power = +this.value">
+        </div>
+        <div>
+          <label for="vt2HR">VT2 HR (bpm)</label>
+          <input type="number" id="vt2HR" min="50" max="250"
+                 oninput="state.athleteParams.vt2HR = +this.value">
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <h2 style="border:none;padding:0;margin-bottom:8px;font-size:0.95rem">Threshold Progression</h2>
+      <p class="help-text">How much VT1 and VT2 power increases per week as the athlete adapts. Set to 0 for no progression.</p>
+      <div class="param-grid" style="max-width:400px">
+        <div>
+          <label for="vt1Prog">VT1 Power (W/week)</label>
+          <input type="number" id="vt1Prog" min="0" max="50" step="0.5"
+                 oninput="state.athleteParams.vt1ProgressionPerWeek = +this.value">
+        </div>
+        <div>
+          <label for="vt2Prog">VT2 Power (W/week)</label>
+          <input type="number" id="vt2Prog" min="0" max="50" step="0.5"
+                 oninput="state.athleteParams.vt2ProgressionPerWeek = +this.value">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Training Templates -->
+    <div class="card">
+      <h2>2. Training Templates</h2>
+      <p class="help-text">Define one or more training session templates. Each template is made up of ordered phases (steady state, progressive ramp, or interval blocks). Interval block progression settings let you automatically increase load across weeks.</p>
+      <div id="template-builder"></div>
+      <div class="section-actions">
+        <button class="btn-primary" onclick="addTemplate()">+ Add Template</button>
+      </div>
+    </div>
+
+    <!-- 3. Schedule Settings -->
+    <div class="card">
+      <h2>3. Schedule Settings</h2>
+      <div class="param-grid" style="max-width:380px; margin-bottom:20px">
+        <div>
+          <label for="numWeeks">Number of weeks</label>
+          <input type="number" id="numWeeks" min="1" max="52"
+                 oninput="onScheduleConfigChange('weeks', +this.value)">
+        </div>
+        <div>
+          <label for="sessPerWeek">Sessions per week</label>
+          <input type="number" id="sessPerWeek" min="1" max="7"
+                 oninput="onScheduleConfigChange('sessionsPerWeek', +this.value)">
+        </div>
+      </div>
+
+      <h2 style="border:none;padding:0;margin-bottom:8px;font-size:0.95rem">Weekly Session Assignment</h2>
+      <p class="help-text">Assign a training template to each session, or leave as Rest. You can assign different templates to different weeks for periodisation.</p>
+      <div class="assignment-grid-wrap">
+        <div id="assignment-grid-container"></div>
+      </div>
+    </div>
+
+    <!-- Validation errors -->
+    <div id="validation-errors" class="error-box"></div>
+
+    <!-- Generate button -->
+    <div class="generate-bar">
+      <button class="btn-success" onclick="generateSchedule()">Generate Training Schedule</button>
+    </div>
+
+  </div><!-- end input-section -->
+
+  <!-- ===== OUTPUT SECTION ===== -->
+  <div id="output-section">
+    <div class="card">
+      <div class="output-toolbar">
+        <h2>Training Schedule</h2>
+        <button class="btn-pdf no-print" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+      <div class="zone-legend">
+        <span class="zone-legend-item"><span class="zone-dot dot-low"></span> Zone 1 — Low intensity (below VT1)</span>
+        <span class="zone-legend-item"><span class="zone-dot dot-moderate"></span> Zone 2 — Moderate intensity (VT1 to VT2)</span>
+        <span class="zone-legend-item"><span class="zone-dot dot-high"></span> Zone 3 — High intensity (above VT2)</span>
+      </div>
+      <div id="schedule-output"></div>
+    </div>
+  </div>
+
+</div><!-- end container -->
+
+<script>
+// ================================================================
+// STATE
+// ================================================================
+let state = {
+  athleteParams: {
+    restHR: 60, maxHR: 190, maxPower: 350,
+    vt1Power: 200, vt1HR: 140,
+    vt2Power: 280, vt2HR: 168,
+    vt1ProgressionPerWeek: 3,
+    vt2ProgressionPerWeek: 4
+  },
+  scheduleConfig: {
+    weeks: 8,
+    sessionsPerWeek: 2,
+    weeklyAssignments: []
+  },
+  templates: []
+};
+
+// ================================================================
+// UTILITIES
+// ================================================================
+let _idSeq = 1;
+function uid() { return 'i' + (_idSeq++); }
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmtDur(min, sec) {
+  return `${Math.floor(min || 0)}:${String(Math.floor(sec || 0)).padStart(2, '0')}`;
+}
+
+function toSec(min, sec) {
+  return (parseInt(min) || 0) * 60 + (parseInt(sec) || 0);
+}
+
+function fromSec(totalSec) {
+  const s = Math.max(0, Math.round(totalSec));
+  return { min: Math.floor(s / 60), sec: s % 60 };
+}
+
+// ================================================================
+// CALCULATIONS
+// ================================================================
+function paramsForWeek(weekIndex) {
+  const ap = state.athleteParams;
+  return {
+    ...ap,
+    vt1Power: ap.vt1Power + weekIndex * (ap.vt1ProgressionPerWeek || 0),
+    vt2Power: ap.vt2Power + weekIndex * (ap.vt2ProgressionPerWeek || 0)
+  };
+}
+
+function calcPower(iref, ap) {
+  if (!iref) return 0;
+  if (iref.refPoint === 'custom') return iref.customWatts || 0;
+  const base = { vt1: ap.vt1Power, vt2: ap.vt2Power, max: ap.maxPower }[iref.refPoint] || 0;
+  return base * ((iref.percent || 0) / 100);
+}
+
+function calcHR(power, ap) {
+  if (power <= 0) return Math.round(ap.restHR);
+  const { restHR, maxHR, maxPower, vt1Power, vt1HR, vt2Power, vt2HR } = ap;
+  let hr;
+  if (vt1Power <= 0) return Math.round(restHR);
+  if (power <= vt1Power) {
+    hr = restHR + (vt1HR - restHR) * (power / vt1Power);
+  } else if (power <= vt2Power) {
+    const span = vt2Power - vt1Power;
+    hr = span <= 0 ? vt2HR : vt1HR + (vt2HR - vt1HR) * ((power - vt1Power) / span);
+  } else {
+    const span = maxPower - vt2Power;
+    hr = span <= 0 ? maxHR : vt2HR + (maxHR - vt2HR) * ((power - vt2Power) / span);
+  }
+  return Math.round(Math.max(restHR, Math.min(maxHR, hr)));
+}
+
+function zoneLabel(power, ap) {
+  if (power <= ap.vt1Power) return 'Low';
+  if (power <= ap.vt2Power) return 'Moderate';
+  return 'High';
+}
+
+function applyProgression(template, weekIdx) {
+  if (weekIdx === 0) return template;
+  const prog = template.progression || {};
+  return {
+    ...template,
+    phases: template.phases.map(phase => {
+      if (phase.type === 'steady') {
+        const durProg = phase.durationProgressionSec || 0;
+        if (!durProg) return phase;
+        const newSec = Math.max(5, toSec(phase.durationMin, phase.durationSec) + weekIdx * durProg);
+        const { min, sec } = fromSec(newSec);
+        return { ...phase, durationMin: min, durationSec: sec };
+      }
+      if (phase.type === 'ramp') return phase;
+      // interval
+      const newReps = Math.max(1, (phase.reps || 1) + weekIdx * (prog.repsPerWeek || 0));
+      const baseWork = toSec(phase.workDurationMin, phase.workDurationSec);
+      const newWork = Math.max(5, baseWork + weekIdx * (prog.workDurationSecPerWeek || 0));
+      const baseRest = toSec(phase.restDurationMin, phase.restDurationSec);
+      const newRest = Math.max(10, baseRest + weekIdx * (prog.restDurationSecPerWeek || 0));
+      const { min: wm, sec: ws } = fromSec(newWork);
+      const { min: rm, sec: rs } = fromSec(newRest);
+      const powerMult = 1 + weekIdx * ((prog.powerProgressPercent || 0) / 100);
+      return {
+        ...phase,
+        reps: newReps,
+        workDurationMin: wm, workDurationSec: ws,
+        restDurationMin: rm, restDurationSec: rs,
+        _powerMult: powerMult
+      };
+    })
+  };
+}
+
+function expandToRows(template, ap) {
+  const rows = [];
+  for (const phase of template.phases) {
+    if (phase.type === 'steady') {
+      const pw = calcPower(phase.intensity, ap);
+      rows.push({
+        label: phase.name || 'Phase',
+        dur: fmtDur(phase.durationMin, phase.durationSec),
+        powerStr: `${Math.round(pw)} W`,
+        hrStr: `${calcHR(pw, ap)} bpm`,
+        zone: zoneLabel(pw, ap)
+      });
+    } else if (phase.type === 'ramp') {
+      const sp = calcPower(phase.startIntensity, ap);
+      const ep = calcPower(phase.endIntensity, ap);
+      const mid = (sp + ep) / 2;
+      rows.push({
+        label: phase.name || 'Ramp',
+        dur: fmtDur(phase.durationMin, phase.durationSec),
+        powerStr: `${Math.round(sp)} \u2192 ${Math.round(ep)} W`,
+        hrStr: `${calcHR(sp, ap)} \u2192 ${calcHR(ep, ap)} bpm`,
+        zone: zoneLabel(mid, ap)
+      });
+    } else if (phase.type === 'interval') {
+      const mult = phase._powerMult || 1;
+      const wp = Math.min(calcPower(phase.workIntensity, ap) * mult, ap.maxPower * 1.1);
+      const rp = calcPower(phase.restIntensity, ap);
+      const wpClamped = Math.min(wp, ap.maxPower);
+      for (let i = 1; i <= (phase.reps || 1); i++) {
+        rows.push({
+          label: `Interval ${i}`,
+          dur: fmtDur(phase.workDurationMin, phase.workDurationSec),
+          powerStr: `${Math.round(wp)} W`,
+          hrStr: `${calcHR(wpClamped, ap)} bpm`,
+          zone: zoneLabel(wpClamped, ap)
+        });
+        rows.push({
+          label: `Rest ${i}`,
+          dur: fmtDur(phase.restDurationMin, phase.restDurationSec),
+          powerStr: `${Math.round(rp)} W`,
+          hrStr: `${calcHR(rp, ap)} bpm`,
+          zone: zoneLabel(rp, ap)
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+// ================================================================
+// SCHEDULE CONFIG
+// ================================================================
+function onScheduleConfigChange(field, value) {
+  state.scheduleConfig[field] = value;
+  syncAssignments();
+  renderAssignmentGrid();
+}
+
+function syncAssignments() {
+  const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
+  const validIds = new Set(state.templates.map(t => t.id));
+  const next = [];
+  for (let w = 0; w < weeks; w++) {
+    const row = [];
+    for (let s = 0; s < sessionsPerWeek; s++) {
+      const cur = weeklyAssignments[w] && weeklyAssignments[w][s];
+      row.push(cur && validIds.has(cur) ? cur : null);
+    }
+    next.push(row);
+  }
+  state.scheduleConfig.weeklyAssignments = next;
+}
+
+// ================================================================
+// TEMPLATE MANAGEMENT
+// ================================================================
+function addTemplate() {
+  const id = uid();
+  state.templates.push({
+    id,
+    name: `Template ${state.templates.length + 1}`,
+    progression: { repsPerWeek: 0, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+    phases: [
+      { id: uid(), type: 'steady', name: 'Warm-Up',
+        durationMin: 5, durationSec: 0,
+        intensity: { refPoint: 'vt1', percent: 50 },
+        durationProgressionSec: 0 }
+    ]
+  });
+  renderTemplateBuilder();
+  syncAssignments();
+  renderAssignmentGrid();
+}
+
+function removeTemplate(id) {
+  state.templates = state.templates.filter(t => t.id !== id);
+  renderTemplateBuilder();
+  syncAssignments();
+  renderAssignmentGrid();
+}
+
+function updateTemplateName(id, value) {
+  const t = state.templates.find(t => t.id === id);
+  if (t) {
+    t.name = value;
+    document.querySelectorAll(`.assign-select option[value="${esc(id)}"]`).forEach(o => {
+      o.textContent = value;
+    });
+  }
+}
+
+function updateProg(id, field, value) {
+  const t = state.templates.find(t => t.id === id);
+  if (t) t.progression[field] = +value;
+}
+
+function toggleProgPanel(id) {
+  const el = document.getElementById(`prog-${id}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addPhase(templateId) {
+  const t = state.templates.find(t => t.id === templateId);
+  if (!t) return;
+  t.phases.push({
+    id: uid(), type: 'steady', name: 'Phase',
+    durationMin: 5, durationSec: 0,
+    intensity: { refPoint: 'vt1', percent: 100 },
+    durationProgressionSec: 0
+  });
+  renderTemplateBuilder();
+}
+
+function removePhase(templateId, phaseId) {
+  const t = state.templates.find(t => t.id === templateId);
+  if (t) t.phases = t.phases.filter(p => p.id !== phaseId);
+  renderTemplateBuilder();
+}
+
+function changePhaseType(templateId, phaseId, newType) {
+  const t = state.templates.find(t => t.id === templateId);
+  if (!t) return;
+  const p = t.phases.find(p => p.id === phaseId);
+  if (!p) return;
+  p.type = newType;
+  if (newType === 'interval') {
+    if (!p.reps) {
+      p.reps = 4;
+      p.workDurationMin = 0; p.workDurationSec = 30;
+      p.workIntensity = { refPoint: 'max', percent: 100 };
+      p.restDurationMin = 2; p.restDurationSec = 0;
+      p.restIntensity = { refPoint: 'vt1', percent: 100 };
+    }
+  } else if (newType === 'ramp') {
+    if (!p.startIntensity) {
+      p.startIntensity = { refPoint: 'vt1', percent: 30 };
+      p.endIntensity = { refPoint: 'vt1', percent: 100 };
+    }
+    if (!p.durationMin && !p.durationSec) { p.durationMin = 5; p.durationSec = 0; }
+  }
+  renderTemplateBuilder();
+}
+
+function updatePhaseField(templateId, phaseId, field, rawValue) {
+  const t = state.templates.find(t => t.id === templateId);
+  if (!t) return;
+  const p = t.phases.find(p => p.id === phaseId);
+  if (p) p[field] = isNaN(rawValue) || rawValue === '' ? rawValue : +rawValue;
+}
+
+function updateIref(templateId, phaseId, iField, subField, value) {
+  const t = state.templates.find(t => t.id === templateId);
+  if (!t) return;
+  const p = t.phases.find(p => p.id === phaseId);
+  if (!p || !p[iField]) return;
+  if (subField === 'refPoint') {
+    p[iField].refPoint = value;
+    const wrap = document.getElementById(`iref-${templateId}-${phaseId}-${iField}`);
+    if (wrap) {
+      const isCustom = value === 'custom';
+      wrap.querySelector('.pct-row').style.display = isCustom ? 'none' : 'flex';
+      wrap.querySelector('.cust-row').style.display = isCustom ? 'flex' : 'none';
+    }
+  } else if (subField === 'percent') {
+    p[iField].percent = +value;
+  } else if (subField === 'customWatts') {
+    p[iField].customWatts = +value;
+  }
+}
+
+// ================================================================
+// TEMPLATE BUILDER RENDERING
+// ================================================================
+function buildIrefHTML(tid, pid, iField, ref) {
+  const r = ref || { refPoint: 'vt1', percent: 100, customWatts: 0 };
+  const isCust = r.refPoint === 'custom';
+  const domId = `iref-${tid}-${pid}-${iField}`;
+  return `<div class="iref-wrap" id="${esc(domId)}">
+    <select onchange="updateIref('${tid}','${pid}','${iField}','refPoint',this.value)">
+      <option value="vt1" ${r.refPoint==='vt1'?'selected':''}>% of VT1</option>
+      <option value="vt2" ${r.refPoint==='vt2'?'selected':''}>% of VT2</option>
+      <option value="max" ${r.refPoint==='max'?'selected':''}>% of Max Power</option>
+      <option value="custom" ${r.refPoint==='custom'?'selected':''}>Custom (W)</option>
+    </select>
+    <div class="iref-val-row pct-row" style="display:${isCust?'none':'flex'}">
+      <input type="number" min="0" max="250" value="${r.percent||100}"
+             oninput="updateIref('${tid}','${pid}','${iField}','percent',this.value)">
+      <span class="iref-unit">%</span>
+    </div>
+    <div class="iref-val-row cust-row" style="display:${isCust?'flex':'none'}">
+      <input type="number" min="0" value="${r.customWatts||0}"
+             oninput="updateIref('${tid}','${pid}','${iField}','customWatts',this.value)">
+      <span class="iref-unit">W</span>
+    </div>
+  </div>`;
+}
+
+function buildDurHTML(tid, pid, mField, sField, mVal, sVal) {
+  return `<div class="dur-wrap">
+    <input type="number" min="0" max="300" value="${mVal||0}" title="minutes"
+           oninput="updatePhaseField('${tid}','${pid}','${mField}',this.value)">
+    <span class="dur-sep">:</span>
+    <input type="number" min="0" max="59" value="${sVal||0}" title="seconds"
+           oninput="updatePhaseField('${tid}','${pid}','${sField}',this.value)">
+    <span class="dur-hint">mm:ss</span>
+  </div>`;
+}
+
+function buildPhaseHTML(tid, phase) {
+  const pid = phase.id;
+  const badgeClass = { steady: 'badge-steady', ramp: 'badge-ramp', interval: 'badge-interval' }[phase.type];
+
+  let fieldsHTML = '';
+  if (phase.type === 'steady') {
+    fieldsHTML = `<div class="phase-fields">
+      <div class="field-group">
+        <label>Phase name</label>
+        <input type="text" value="${esc(phase.name||'')}"
+               oninput="updatePhaseField('${tid}','${pid}','name',this.value)"
+               style="max-width:160px">
+      </div>
+      <div class="field-group">
+        <label>Duration</label>
+        ${buildDurHTML(tid, pid, 'durationMin', 'durationSec', phase.durationMin, phase.durationSec)}
+      </div>
+      <div class="field-group">
+        <label>Target intensity</label>
+        ${buildIrefHTML(tid, pid, 'intensity', phase.intensity)}
+      </div>
+      <div class="field-group">
+        <label>Duration progression (+sec/week)</label>
+        <input type="number" min="-600" max="600" value="${phase.durationProgressionSec||0}"
+               oninput="updatePhaseField('${tid}','${pid}','durationProgressionSec',this.value)"
+               style="max-width:90px">
+      </div>
+    </div>`;
+  } else if (phase.type === 'ramp') {
+    fieldsHTML = `<div class="phase-fields">
+      <div class="field-group">
+        <label>Phase name</label>
+        <input type="text" value="${esc(phase.name||'')}"
+               oninput="updatePhaseField('${tid}','${pid}','name',this.value)"
+               style="max-width:160px">
+      </div>
+      <div class="field-group">
+        <label>Duration</label>
+        ${buildDurHTML(tid, pid, 'durationMin', 'durationSec', phase.durationMin, phase.durationSec)}
+      </div>
+      <div class="field-group">
+        <label>Start intensity</label>
+        ${buildIrefHTML(tid, pid, 'startIntensity', phase.startIntensity)}
+      </div>
+      <div class="field-group">
+        <label>End intensity</label>
+        ${buildIrefHTML(tid, pid, 'endIntensity', phase.endIntensity)}
+      </div>
+    </div>`;
+  } else if (phase.type === 'interval') {
+    fieldsHTML = `<div class="phase-fields">
+      <div class="field-group">
+        <label>Number of intervals</label>
+        <input type="number" min="1" max="100" value="${phase.reps||1}"
+               oninput="updatePhaseField('${tid}','${pid}','reps',this.value)"
+               style="max-width:90px">
+      </div>
+      <div class="field-group">
+        <label>Work duration</label>
+        ${buildDurHTML(tid, pid, 'workDurationMin', 'workDurationSec', phase.workDurationMin, phase.workDurationSec)}
+      </div>
+      <div class="field-group">
+        <label>Work intensity</label>
+        ${buildIrefHTML(tid, pid, 'workIntensity', phase.workIntensity)}
+      </div>
+      <div class="field-group">
+        <label>Rest duration</label>
+        ${buildDurHTML(tid, pid, 'restDurationMin', 'restDurationSec', phase.restDurationMin, phase.restDurationSec)}
+      </div>
+      <div class="field-group">
+        <label>Rest intensity</label>
+        ${buildIrefHTML(tid, pid, 'restIntensity', phase.restIntensity)}
+      </div>
+    </div>`;
+  }
+
+  return `<div class="phase-row">
+    <div class="phase-row-header">
+      <span class="phase-type-badge ${badgeClass}">${phase.type}</span>
+      <select style="width:auto" onchange="changePhaseType('${tid}','${pid}',this.value)">
+        <option value="steady" ${phase.type==='steady'?'selected':''}>Steady State</option>
+        <option value="ramp" ${phase.type==='ramp'?'selected':''}>Progressive Ramp</option>
+        <option value="interval" ${phase.type==='interval'?'selected':''}>Interval Block</option>
+      </select>
+      <button class="btn-danger btn-small"
+              onclick="removePhase('${tid}','${pid}')"
+              style="margin-left:auto">Remove</button>
+    </div>
+    ${fieldsHTML}
+  </div>`;
+}
+
+function buildTemplateCardHTML(tmpl) {
+  const tid = tmpl.id;
+  const prog = tmpl.progression || {};
+  const phasesHTML = tmpl.phases.map(p => buildPhaseHTML(tid, p)).join('');
+  return `<div class="template-card" id="tcard-${esc(tid)}">
+    <div class="template-header">
+      <input class="template-name-input" type="text"
+             value="${esc(tmpl.name)}" placeholder="Template name"
+             oninput="updateTemplateName('${tid}',this.value)">
+      <button class="btn-secondary btn-small"
+              onclick="toggleProgPanel('${tid}')">Progression settings</button>
+      <button class="btn-danger btn-small"
+              onclick="removeTemplate('${tid}')">Delete template</button>
+    </div>
+    <div id="prog-${esc(tid)}" class="progression-panel" style="display:none">
+      <h4>Interval Block Progression — applied each week to all interval blocks in this template</h4>
+      <div class="prog-grid">
+        <div>
+          <label>Reps increase (per week)</label>
+          <input type="number" min="-10" max="50" value="${prog.repsPerWeek||0}"
+                 oninput="updateProg('${tid}','repsPerWeek',this.value)">
+          <div class="prog-hint">e.g. +1 adds one interval rep per week</div>
+        </div>
+        <div>
+          <label>Work duration (sec/week)</label>
+          <input type="number" min="-300" max="600" value="${prog.workDurationSecPerWeek||0}"
+                 oninput="updateProg('${tid}','workDurationSecPerWeek',this.value)">
+          <div class="prog-hint">e.g. +30 adds 30 s to each interval per week</div>
+        </div>
+        <div>
+          <label>Rest duration (sec/week)</label>
+          <input type="number" min="-300" max="600" value="${prog.restDurationSecPerWeek||0}"
+                 oninput="updateProg('${tid}','restDurationSecPerWeek',this.value)">
+          <div class="prog-hint">negative = shorter rests over time</div>
+        </div>
+        <div>
+          <label>Work power (% per week)</label>
+          <input type="number" min="0" max="20" step="0.5"
+                 value="${prog.powerProgressPercent||0}"
+                 oninput="updateProg('${tid}','powerProgressPercent',this.value)">
+          <div class="prog-hint">e.g. +2 increases work power by 2% per week</div>
+        </div>
+      </div>
+    </div>
+    <div class="phase-list">
+      ${phasesHTML || '<p class="no-templates-msg">No phases yet. Add one below.</p>'}
+    </div>
+    <button class="btn-secondary btn-small"
+            onclick="addPhase('${tid}')">+ Add Phase</button>
+  </div>`;
+}
+
+function renderTemplateBuilder() {
+  const container = document.getElementById('template-builder');
+  if (state.templates.length === 0) {
+    container.innerHTML = '<p class="no-templates-msg" style="margin-bottom:12px">No templates yet. Click &quot;Add Template&quot; to create one.</p>';
+    return;
+  }
+  container.innerHTML = state.templates.map(t => buildTemplateCardHTML(t)).join('');
+}
+
+// ================================================================
+// ASSIGNMENT GRID
+// ================================================================
+function renderAssignmentGrid() {
+  const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
+  const container = document.getElementById('assignment-grid-container');
+  if (!weeks || !sessionsPerWeek) {
+    container.innerHTML = '<p class="help-text">Enter weeks and sessions per week above.</p>';
+    return;
+  }
+  let html = '<table class="assignment-table"><thead><tr><th>Week</th>';
+  for (let s = 1; s <= sessionsPerWeek; s++) {
+    html += `<th>Session ${s}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  for (let w = 0; w < weeks; w++) {
+    html += `<tr><td class="week-cell">Week ${w + 1}</td>`;
+    for (let s = 0; s < sessionsPerWeek; s++) {
+      const sel = weeklyAssignments[w] && weeklyAssignments[w][s];
+      html += `<td><select class="assign-select" onchange="setAssignment(${w},${s},this.value)">
+        <option value="">— Rest —</option>
+        ${state.templates.map(t =>
+          `<option value="${esc(t.id)}" ${sel===t.id?'selected':''}>${esc(t.name)}</option>`
+        ).join('')}
+      </select></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function setAssignment(w, s, templateId) {
+  if (state.scheduleConfig.weeklyAssignments[w]) {
+    state.scheduleConfig.weeklyAssignments[w][s] = templateId || null;
+  }
+}
+
+// ================================================================
+// VALIDATION
+// ================================================================
+function validate() {
+  const errors = [];
+  const ap = state.athleteParams;
+  if (!ap.restHR || ap.restHR <= 0)  errors.push('Resting HR must be greater than 0');
+  if (!ap.maxHR  || ap.maxHR  <= 0)  errors.push('Max HR must be greater than 0');
+  if (!ap.maxPower || ap.maxPower <= 0) errors.push('Max Power must be greater than 0');
+  if (!ap.vt1Power || ap.vt1Power <= 0) errors.push('VT1 Power must be greater than 0');
+  if (!ap.vt1HR  || ap.vt1HR  <= 0)  errors.push('VT1 HR must be greater than 0');
+  if (!ap.vt2Power || ap.vt2Power <= 0) errors.push('VT2 Power must be greater than 0');
+  if (!ap.vt2HR  || ap.vt2HR  <= 0)  errors.push('VT2 HR must be greater than 0');
+  if (ap.restHR >= ap.vt1HR)  errors.push('VT1 HR must be greater than Resting HR');
+  if (ap.vt1HR  >= ap.vt2HR)  errors.push('VT2 HR must be greater than VT1 HR');
+  if (ap.vt2HR  >= ap.maxHR)  errors.push('Max HR must be greater than VT2 HR');
+  if (ap.vt1Power >= ap.vt2Power) errors.push('VT2 Power must be greater than VT1 Power');
+  if (ap.vt2Power >= ap.maxPower) errors.push('Max Power must be greater than VT2 Power');
+  const { weeks, sessionsPerWeek } = state.scheduleConfig;
+  if (!weeks || weeks < 1 || weeks > 52) errors.push('Number of weeks must be between 1 and 52');
+  if (!sessionsPerWeek || sessionsPerWeek < 1 || sessionsPerWeek > 7)
+    errors.push('Sessions per week must be between 1 and 7');
+  state.templates.forEach((t, i) => {
+    if (!t.name.trim()) errors.push(`Template ${i + 1} has no name`);
+    t.phases.forEach(p => {
+      if (p.type === 'interval') {
+        if (!p.reps || p.reps < 1)
+          errors.push(`"${t.name}": interval block must have at least 1 repetition`);
+        if (toSec(p.workDurationMin, p.workDurationSec) <= 0)
+          errors.push(`"${t.name}": interval work duration must be greater than 0`);
+        if (toSec(p.restDurationMin, p.restDurationSec) <= 0)
+          errors.push(`"${t.name}": interval rest duration must be greater than 0`);
+      }
+    });
+  });
+  return errors;
+}
+
+// ================================================================
+// SCHEDULE GENERATION & RENDERING
+// ================================================================
+function generateSchedule() {
+  const errors = validate();
+  const errBox = document.getElementById('validation-errors');
+  if (errors.length > 0) {
+    errBox.innerHTML = '<strong>Please fix the following issues:</strong><ul>' +
+      errors.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>';
+    errBox.style.display = 'block';
+    errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  errBox.style.display = 'none';
+  renderSchedule();
+  const out = document.getElementById('output-section');
+  out.style.display = 'block';
+  out.scrollIntoView({ behavior: 'smooth' });
+}
+
+function buildSessionTableHTML(rows) {
+  let html = `<table class="schedule-table">
+    <thead><tr>
+      <th>Phase</th>
+      <th>Duration</th>
+      <th>Target Power (W)</th>
+      <th>Target HR (bpm)</th>
+      <th>Zone</th>
+      <th>RPE</th>
+    </tr></thead><tbody>`;
+  rows.forEach(row => {
+    const zc = `zone-${row.zone.toLowerCase()}`;
+    html += `<tr class="${zc}">
+      <td>${esc(row.label)}</td>
+      <td>${esc(row.dur)}</td>
+      <td>${esc(row.powerStr)}</td>
+      <td>${esc(row.hrStr)}</td>
+      <td>${esc(row.zone)}</td>
+      <td class="rpe-cell"></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderSchedule() {
+  const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
+  const container = document.getElementById('schedule-output');
+  let html = '';
+  let anySession = false;
+
+  for (let w = 0; w < weeks; w++) {
+    const ap = paramsForWeek(w);
+    let weekInner = '';
+    for (let s = 0; s < sessionsPerWeek; s++) {
+      const tid = weeklyAssignments[w] && weeklyAssignments[w][s];
+      if (!tid) continue;
+      const tmpl = state.templates.find(t => t.id === tid);
+      if (!tmpl) continue;
+
+      const isInterval = tmpl.phases.some(p => p.type === 'interval');
+      const typeLabel = isInterval ? 'Interval' : 'Continuous';
+      const progTmpl = applyProgression(tmpl, w);
+      const rows = expandToRows(progTmpl, ap);
+
+      weekInner += `<div class="session-section">
+        <h3>Session ${s + 1} &mdash; ${esc(tmpl.name)}
+          <span style="font-weight:400;color:#888">(${typeLabel})</span></h3>
+        <div class="session-meta">
+          Week ${w + 1} thresholds:
+          VT1 = ${Math.round(ap.vt1Power)} W / ${ap.vt1HR} bpm &nbsp;&nbsp;
+          VT2 = ${Math.round(ap.vt2Power)} W / ${ap.vt2HR} bpm
+        </div>`;
+      if (rows.length === 0) {
+        weekInner += '<p style="color:#aaa;font-size:0.85rem">No phases defined in this template.</p>';
+      } else {
+        weekInner += buildSessionTableHTML(rows);
+      }
+      weekInner += '</div>';
+      anySession = true;
+    }
+
+    if (weekInner) {
+      html += `<div class="week-section"><h2>Week ${w + 1}</h2>${weekInner}</div>`;
+    }
+  }
+
+  if (!anySession) {
+    html = '<p style="color:#aaa;text-align:center;padding:48px 0;font-size:0.95rem">No sessions assigned. Use the weekly assignment grid above to assign templates to sessions.</p>';
+  }
+
+  container.innerHTML = html;
+}
+
+// ================================================================
+// INITIALISATION
+// ================================================================
+function initDefaults() {
+  const t1 = uid(), t2 = uid();
+  state.templates = [
+    {
+      id: t1,
+      name: 'HIIT Short',
+      progression: { repsPerWeek: 1, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      phases: [
+        { id: uid(), type: 'steady', name: 'Warm-Up',
+          durationMin: 5, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 50 },
+          durationProgressionSec: 0 },
+        { id: uid(), type: 'interval', reps: 4,
+          workDurationMin: 0, workDurationSec: 15,
+          workIntensity: { refPoint: 'max', percent: 100 },
+          restDurationMin: 2, restDurationSec: 0,
+          restIntensity: { refPoint: 'vt1', percent: 100 } },
+        { id: uid(), type: 'steady', name: 'Cool-Down',
+          durationMin: 5, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 50 },
+          durationProgressionSec: 0 }
+      ]
+    },
+    {
+      id: t2,
+      name: 'HIIT Long',
+      progression: { repsPerWeek: 0, workDurationSecPerWeek: 30, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      phases: [
+        { id: uid(), type: 'ramp', name: 'Warm-Up',
+          durationMin: 5, durationSec: 0,
+          startIntensity: { refPoint: 'vt1', percent: 30 },
+          endIntensity: { refPoint: 'vt1', percent: 100 } },
+        { id: uid(), type: 'interval', reps: 2,
+          workDurationMin: 5, workDurationSec: 0,
+          workIntensity: { refPoint: 'vt2', percent: 100 },
+          restDurationMin: 3, restDurationSec: 0,
+          restIntensity: { refPoint: 'vt2', percent: 50 } },
+        { id: uid(), type: 'steady', name: 'Cool-Down',
+          durationMin: 5, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 50 },
+          durationProgressionSec: 0 }
+      ]
+    }
+  ];
+
+  // 8-week schedule alternating the two templates
+  state.scheduleConfig.weeklyAssignments = Array.from({ length: 8 }, (_, w) => [
+    w % 2 === 0 ? t1 : t2,
+    w % 2 === 0 ? t2 : t1
+  ]);
+}
+
+function populateForms() {
+  const ap = state.athleteParams;
+  document.getElementById('restHR').value    = ap.restHR;
+  document.getElementById('maxHR').value     = ap.maxHR;
+  document.getElementById('maxPower').value  = ap.maxPower;
+  document.getElementById('vt1Power').value  = ap.vt1Power;
+  document.getElementById('vt1HR').value     = ap.vt1HR;
+  document.getElementById('vt2Power').value  = ap.vt2Power;
+  document.getElementById('vt2HR').value     = ap.vt2HR;
+  document.getElementById('vt1Prog').value   = ap.vt1ProgressionPerWeek;
+  document.getElementById('vt2Prog').value   = ap.vt2ProgressionPerWeek;
+  document.getElementById('numWeeks').value  = state.scheduleConfig.weeks;
+  document.getElementById('sessPerWeek').value = state.scheduleConfig.sessionsPerWeek;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initDefaults();
+  populateForms();
+  renderTemplateBuilder();
+  renderAssignmentGrid();
+});
+</script>
+</body>
+</html>
