@@ -161,6 +161,30 @@
     .no-templates-msg { color: #aaa; font-size: 0.88rem; font-style: italic; padding: 8px 0; }
     hr.section-divider { border: none; border-top: 1.5px solid #eaecf4; margin: 20px 0; }
 
+    /* === ATHLETE SUMMARY (print header) === */
+    #athlete-summary { display: none; margin-bottom: 20px; padding: 14px 18px;
+                       border: 1.5px solid #d0d8f0; border-radius: 8px; background: #f5f8ff; }
+    #athlete-summary h3 { font-size: 0.95rem; margin-bottom: 10px; color: #1a1a2e; }
+    .summary-zones { display: flex; gap: 16px; flex-wrap: wrap; }
+    .summary-zone { padding: 8px 14px; border-radius: 6px; font-size: 0.82rem; line-height: 1.6; }
+    .summary-zone strong { display: block; font-size: 0.85rem; margin-bottom: 2px; }
+    .sz-low      { background: #e8f5e9; border: 1px solid #a5d6a7; }
+    .sz-moderate { background: #fffde7; border: 1px solid #ffe082; }
+    .sz-high     { background: #ffebee; border: 1px solid #ef9a9a; }
+
+    /* === SESSION TOTAL ROW === */
+    .total-row td { background: #f0f2f7 !important; font-weight: 700; font-size: 0.82rem;
+                    border-top: 2px solid #ccc !important; color: #333; padding: 6px 12px; }
+
+    @media print {
+      #athlete-summary { display: block !important; page-break-inside: avoid;
+                         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .sz-low      { background: #e8f5e9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .sz-moderate { background: #fffde7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .sz-high     { background: #ffebee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .total-row td { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
     /* === PRINT STYLES === */
     @media print {
       #input-section, .no-print { display: none !important; }
@@ -185,7 +209,9 @@
                                   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .schedule-table th { padding: 5pt 7pt; font-size: 8pt; }
       .schedule-table td { padding: 4pt 7pt; border: 1pt solid #ccc; }
-      .zone-low td, .zone-moderate td, .zone-high td { background: none !important; }
+      .zone-low td { background: #e8f5e9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .zone-moderate td { background: #fffde7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .zone-high td { background: #ffebee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rpe-cell { width: 60pt; min-width: 60pt; }
     }
   </style>
@@ -292,7 +318,7 @@
       </div>
 
       <h2 style="border:none;padding:0;margin-bottom:8px;font-size:0.95rem">Weekly Session Assignment</h2>
-      <p class="help-text">Assign a training template to each session, or leave as Rest. You can assign different templates to different weeks for periodisation.</p>
+      <p class="help-text">Set Week 1 — it automatically pre-fills all other weeks. Override any individual week by changing its dropdown directly.</p>
       <div class="assignment-grid-wrap">
         <div id="assignment-grid-container"></div>
       </div>
@@ -320,6 +346,7 @@
         <span class="zone-legend-item"><span class="zone-dot dot-moderate"></span> Zone 2 — Moderate intensity (VT1 to VT2)</span>
         <span class="zone-legend-item"><span class="zone-dot dot-high"></span> Zone 3 — High intensity (above VT2)</span>
       </div>
+      <div id="athlete-summary"></div>
       <div id="schedule-output"></div>
     </div>
   </div>
@@ -459,6 +486,7 @@ function expandToRows(template, ap) {
       rows.push({
         label: phase.name || 'Phase',
         dur: fmtDur(phase.durationMin, phase.durationSec),
+        rawDurSec: toSec(phase.durationMin, phase.durationSec),
         powerStr: `${Math.round(pw)} W`,
         hrStr: `${calcHR(pw, ap)} bpm`,
         zone: zoneLabel(pw, ap)
@@ -470,6 +498,7 @@ function expandToRows(template, ap) {
       rows.push({
         label: phase.name || 'Ramp',
         dur: fmtDur(phase.durationMin, phase.durationSec),
+        rawDurSec: toSec(phase.durationMin, phase.durationSec),
         powerStr: `${Math.round(sp)} \u2192 ${Math.round(ep)} W`,
         hrStr: `${calcHR(sp, ap)} \u2192 ${calcHR(ep, ap)} bpm`,
         zone: zoneLabel(mid, ap)
@@ -483,6 +512,7 @@ function expandToRows(template, ap) {
         rows.push({
           label: `Interval ${i}`,
           dur: fmtDur(phase.workDurationMin, phase.workDurationSec),
+          rawDurSec: toSec(phase.workDurationMin, phase.workDurationSec),
           powerStr: `${Math.round(wp)} W`,
           hrStr: `${calcHR(wpClamped, ap)} bpm`,
           zone: zoneLabel(wpClamped, ap)
@@ -490,6 +520,7 @@ function expandToRows(template, ap) {
         rows.push({
           label: `Rest ${i}`,
           dur: fmtDur(phase.restDurationMin, phase.restDurationSec),
+          rawDurSec: toSec(phase.restDurationMin, phase.restDurationSec),
           powerStr: `${Math.round(rp)} W`,
           hrStr: `${calcHR(rp, ap)} bpm`,
           zone: zoneLabel(rp, ap)
@@ -512,12 +543,22 @@ function onScheduleConfigChange(field, value) {
 function syncAssignments() {
   const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
   const validIds = new Set(state.templates.map(t => t.id));
+  // Week 1 is the master pattern used to pre-fill new weeks
+  const week1 = weeklyAssignments[0] || [];
   const next = [];
   for (let w = 0; w < weeks; w++) {
     const row = [];
     for (let s = 0; s < sessionsPerWeek; s++) {
       const cur = weeklyAssignments[w] && weeklyAssignments[w][s];
-      row.push(cur && validIds.has(cur) ? cur : null);
+      if (cur && validIds.has(cur)) {
+        row.push(cur);
+      } else if (w === 0) {
+        row.push(null);
+      } else {
+        // New or invalid slot: inherit from week 1
+        const w1val = week1[s];
+        row.push(w1val && validIds.has(w1val) ? w1val : null);
+      }
     }
     next.push(row);
   }
@@ -865,8 +906,22 @@ function renderAssignmentGrid() {
 }
 
 function setAssignment(w, s, templateId) {
-  if (state.scheduleConfig.weeklyAssignments[w]) {
-    state.scheduleConfig.weeklyAssignments[w][s] = templateId || null;
+  const assignments = state.scheduleConfig.weeklyAssignments;
+  if (!assignments[w]) return;
+  const oldVal = assignments[w][s];
+  assignments[w][s] = templateId || null;
+  // When week 1 changes, propagate to later weeks that still have the old week-1 value or null
+  if (w === 0) {
+    const weeks = state.scheduleConfig.weeks;
+    for (let ww = 1; ww < weeks; ww++) {
+      if (assignments[ww]) {
+        const cur = assignments[ww][s];
+        if (cur === oldVal || cur === null || cur === undefined) {
+          assignments[ww][s] = templateId || null;
+        }
+      }
+    }
+    renderAssignmentGrid();
   }
 }
 
@@ -929,6 +984,8 @@ function generateSchedule() {
 }
 
 function buildSessionTableHTML(rows) {
+  const totalSec = rows.reduce((sum, r) => sum + (r.rawDurSec || 0), 0);
+  const { min: tm, sec: ts } = fromSec(totalSec);
   let html = `<table class="schedule-table">
     <thead><tr>
       <th>Phase</th>
@@ -949,8 +1006,57 @@ function buildSessionTableHTML(rows) {
       <td class="rpe-cell"></td>
     </tr>`;
   });
-  html += '</tbody></table>';
+  html += `</tbody><tfoot><tr class="total-row">
+    <td>Total session time</td>
+    <td>${fmtDur(tm, ts)}</td>
+    <td colspan="4"></td>
+  </tr></tfoot></table>`;
   return html;
+}
+
+function renderAthleteSummary() {
+  const ap = state.athleteParams;
+  const prog1 = ap.vt1ProgressionPerWeek || 0;
+  const prog2 = ap.vt2ProgressionPerWeek || 0;
+  const weeks = state.scheduleConfig.weeks;
+  const vt1End = Math.round(ap.vt1Power + (weeks - 1) * prog1);
+  const vt2End = Math.round(ap.vt2Power + (weeks - 1) * prog2);
+  const progNote = (prog1 || prog2)
+    ? `<p style="font-size:0.78rem;color:#666;margin-top:10px">
+        Threshold progression over ${weeks} weeks:
+        VT1 ${Math.round(ap.vt1Power)} &rarr; ${vt1End} W &nbsp;|&nbsp;
+        VT2 ${Math.round(ap.vt2Power)} &rarr; ${vt2End} W
+       </p>`
+    : '';
+  document.getElementById('athlete-summary').innerHTML = `
+    <h3>Athlete Profile &amp; 3-Zone Model</h3>
+    <div class="summary-zones">
+      <div class="summary-zone sz-low">
+        <strong>Zone 1 — Low Intensity</strong>
+        Power: &lt; ${Math.round(ap.vt1Power)} W (week 1)<br>
+        Heart rate: &lt; ${ap.vt1HR} bpm<br>
+        <em>Below VT1</em>
+      </div>
+      <div class="summary-zone sz-moderate">
+        <strong>Zone 2 — Moderate Intensity</strong>
+        Power: ${Math.round(ap.vt1Power)} – ${Math.round(ap.vt2Power)} W (week 1)<br>
+        Heart rate: ${ap.vt1HR} – ${ap.vt2HR} bpm<br>
+        <em>VT1 to VT2</em>
+      </div>
+      <div class="summary-zone sz-high">
+        <strong>Zone 3 — High Intensity</strong>
+        Power: &gt; ${Math.round(ap.vt2Power)} W (week 1)<br>
+        Heart rate: &gt; ${ap.vt2HR} bpm<br>
+        <em>Above VT2</em>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:#666;margin-top:10px">
+      Resting HR: ${ap.restHR} bpm &nbsp;|&nbsp;
+      Max HR: ${ap.maxHR} bpm &nbsp;|&nbsp;
+      Max Power: ${ap.maxPower} W
+    </p>
+    ${progNote}`;
+  document.getElementById('athlete-summary').style.display = 'block';
 }
 
 function renderSchedule() {
@@ -958,6 +1064,7 @@ function renderSchedule() {
   const container = document.getElementById('schedule-output');
   let html = '';
   let anySession = false;
+  renderAthleteSummary();
 
   for (let w = 0; w < weeks; w++) {
     const ap = paramsForWeek(w);
@@ -1006,7 +1113,7 @@ function renderSchedule() {
 // INITIALISATION
 // ================================================================
 function initDefaults() {
-  const t1 = uid(), t2 = uid();
+  const t1 = uid(), t2 = uid(), t3 = uid();
   state.templates = [
     {
       id: t1,
@@ -1047,14 +1154,40 @@ function initDefaults() {
           intensity: { refPoint: 'vt1', percent: 50 },
           durationProgressionSec: 0 }
       ]
+    },
+    {
+      id: t3,
+      name: 'Aerobic Continuous',
+      progression: { repsPerWeek: 0, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      phases: [
+        { id: uid(), type: 'ramp', name: 'Warm-Up',
+          durationMin: 5, durationSec: 0,
+          startIntensity: { refPoint: 'vt1', percent: 30 },
+          endIntensity: { refPoint: 'vt1', percent: 100 } },
+        { id: uid(), type: 'steady', name: 'Zone 2 Effort',
+          durationMin: 10, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 100 },
+          durationProgressionSec: 30 },
+        { id: uid(), type: 'steady', name: 'Recovery',
+          durationMin: 2, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 50 },
+          durationProgressionSec: 0 },
+        { id: uid(), type: 'steady', name: 'Zone 2 Effort (long)',
+          durationMin: 15, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 100 },
+          durationProgressionSec: 60 },
+        { id: uid(), type: 'steady', name: 'Cool-Down',
+          durationMin: 5, durationSec: 0,
+          intensity: { refPoint: 'vt1', percent: 50 },
+          durationProgressionSec: 0 }
+      ]
     }
   ];
 
-  // 8-week schedule alternating the two templates
-  state.scheduleConfig.weeklyAssignments = Array.from({ length: 8 }, (_, w) => [
-    w % 2 === 0 ? t1 : t2,
-    w % 2 === 0 ? t2 : t1
-  ]);
+  // 8-week schedule, 3 sessions/week: HIIT Short, HIIT Long, Aerobic Continuous
+  state.scheduleConfig.weeks = 8;
+  state.scheduleConfig.sessionsPerWeek = 3;
+  state.scheduleConfig.weeklyAssignments = Array.from({ length: 8 }, () => [t1, t2, t3]);
 }
 
 function populateForms() {
