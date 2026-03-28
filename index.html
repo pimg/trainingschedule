@@ -104,6 +104,21 @@
     .prog-row { display: grid; grid-template-columns: repeat(3, minmax(100px, 1fr)); gap: 10px; margin-bottom: 4px; }
     .prog-row label { font-size: 0.78rem; }
     .prog-row input { width: 100%; }
+    /* Test block */
+    .test-block-toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+    .test-block-toggle-row label { margin-bottom: 0; font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+    .test-block-panel { margin-top: 12px; padding: 14px 16px; background: #fff8ec;
+                        border-radius: 8px; border: 1.5px solid #f0d080; }
+    .test-block-panel h4 { font-size: 0.82rem; font-weight: 700; color: #a07000; margin-bottom: 12px; }
+    .test-block-row { display: grid; grid-template-columns: repeat(2, minmax(130px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .test-block-row label { font-size: 0.78rem; }
+    .test-section { margin-top: 12px; padding: 10px 0; border-top: 2px dashed #f0c040; }
+    .test-section h4 { font-size: 0.9rem; font-weight: 700; color: #a07000; margin-bottom: 8px; }
+    .test-table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+    .test-table th { background: #f0d080; padding: 6px 10px; text-align: left; font-size: 0.78rem; border: 1px solid #d4b84a; }
+    .test-table td { padding: 18px 10px; border: 1px solid #d4b84a; }
+    .test-badge { font-size: 0.72rem; font-weight: 700; color: #a07000; background: #fff3cc;
+                  border: 1px solid #f0c040; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
 
     /* === ASSIGNMENT GRID === */
     .assignment-grid-wrap { overflow-x: auto; margin-top: 4px; }
@@ -220,6 +235,12 @@
       .zone-moderate td { background: #fffde7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .zone-high td { background: #ffebee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rpe-cell { width: 60pt; min-width: 60pt; }
+      .test-section { border-top: 2pt dashed #aaa; margin-top: 10pt; padding: 8pt 0; }
+      .test-section h4 { font-size: 9pt; margin-bottom: 4pt; }
+      .test-table { border-collapse: collapse; font-size: 9pt; width: 100%; }
+      .test-table th { background: #f0d080 !important; -webkit-print-color-adjust: exact;
+                       print-color-adjust: exact; padding: 4pt 6pt; border: 1pt solid #ccc; }
+      .test-table td { padding: 16pt 6pt; border: 1pt solid #ccc; }
     }
   </style>
 </head>
@@ -333,6 +354,119 @@
       </div>
     </div>
 
+    <!-- 2b. Testing -->
+    <div class="card">
+      <h2>2b. Testing</h2>
+      <p class="help-text">Optionally add fitness tests to your plan. The baseline test appears before Week 1. Periodic tests appear every N weeks in the schedule.</p>
+
+      <!-- Baseline test -->
+      <div class="test-block-toggle-row">
+        <input type="checkbox" id="tc-baseline-enabled" class="toggle-check"
+               onchange="toggleTestConfig('baseline', this.checked)">
+        <label for="tc-baseline-enabled">Baseline Test (before Week 1)</label>
+      </div>
+      <div id="tc-panel-baseline" class="test-block-panel" style="display:none">
+        <div class="test-block-row">
+          <div>
+            <label>Test type</label>
+            <select onchange="onTestConfigTypeChange('baseline', this.value)">
+              <option value="steepRamp">Steep Ramp Test</option>
+              <option value="timeTillExhaustion">Time Till Exhaustion</option>
+            </select>
+          </div>
+        </div>
+        <div id="tc-ramp-baseline">
+          <label style="font-size:0.78rem">Step size (W)</label>
+          <select onchange="updateTestConfig('baseline','steepRampStepW',this.value)">
+            <option value="5">5 W</option>
+            <option value="10">10 W</option>
+            <option value="15">15 W</option>
+            <option value="25" selected>25 W</option>
+            <option value="30">30 W</option>
+            <option value="35">35 W</option>
+          </select>
+        </div>
+        <div id="tc-tte-baseline" style="display:none">
+          <label style="font-size:0.78rem">Target intensity</label>
+          <div class="iref-wrap" id="iref-tc-baseline">
+            <select onchange="updateTestConfigIref('baseline','refPoint',this.value)">
+              <option value="vt1">% of VT1</option>
+              <option value="vt2" selected>% of VT2</option>
+              <option value="max">% of Max Power</option>
+              <option value="custom">Custom (W)</option>
+            </select>
+            <div class="iref-val-row pct-row" style="display:flex">
+              <input type="number" min="0" max="250" value="100"
+                     oninput="updateTestConfigIref('baseline','percent',this.value)">
+              <span class="iref-unit">%</span>
+            </div>
+            <div class="iref-val-row cust-row" style="display:none">
+              <input type="number" min="0" value="0"
+                     oninput="updateTestConfigIref('baseline','customWatts',this.value)">
+              <span class="iref-unit">W</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="section-divider" style="margin:14px 0">
+
+      <!-- Periodic test -->
+      <div class="test-block-toggle-row">
+        <input type="checkbox" id="tc-periodic-enabled" class="toggle-check"
+               onchange="toggleTestConfig('periodic', this.checked)">
+        <label for="tc-periodic-enabled">Periodic Test</label>
+      </div>
+      <div id="tc-panel-periodic" class="test-block-panel" style="display:none">
+        <div class="test-block-row">
+          <div>
+            <label>Every N weeks</label>
+            <input type="number" min="1" max="52" value="4"
+                   oninput="updateTestConfig('periodic','everyNWeeks',this.value)">
+          </div>
+          <div>
+            <label>Test type</label>
+            <select onchange="onTestConfigTypeChange('periodic', this.value)">
+              <option value="steepRamp">Steep Ramp Test</option>
+              <option value="timeTillExhaustion">Time Till Exhaustion</option>
+            </select>
+          </div>
+        </div>
+        <div id="tc-ramp-periodic">
+          <label style="font-size:0.78rem">Step size (W)</label>
+          <select onchange="updateTestConfig('periodic','steepRampStepW',this.value)">
+            <option value="5">5 W</option>
+            <option value="10">10 W</option>
+            <option value="15">15 W</option>
+            <option value="25" selected>25 W</option>
+            <option value="30">30 W</option>
+            <option value="35">35 W</option>
+          </select>
+        </div>
+        <div id="tc-tte-periodic" style="display:none">
+          <label style="font-size:0.78rem">Target intensity</label>
+          <div class="iref-wrap" id="iref-tc-periodic">
+            <select onchange="updateTestConfigIref('periodic','refPoint',this.value)">
+              <option value="vt1">% of VT1</option>
+              <option value="vt2" selected>% of VT2</option>
+              <option value="max">% of Max Power</option>
+              <option value="custom">Custom (W)</option>
+            </select>
+            <div class="iref-val-row pct-row" style="display:flex">
+              <input type="number" min="0" max="250" value="100"
+                     oninput="updateTestConfigIref('periodic','percent',this.value)">
+              <span class="iref-unit">%</span>
+            </div>
+            <div class="iref-val-row cust-row" style="display:none">
+              <input type="number" min="0" value="0"
+                     oninput="updateTestConfigIref('periodic','customWatts',this.value)">
+              <span class="iref-unit">W</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 3. Schedule Settings -->
     <div class="card">
       <h2>3. Schedule Settings</h2>
@@ -405,7 +539,13 @@ let state = {
     sessionsPerWeek: 2,
     weeklyAssignments: []
   },
-  templates: []
+  templates: [],
+  testConfig: {
+    baseline: { enabled: false, type: 'steepRamp', steepRampStepW: 25,
+                tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } },
+    periodic:  { enabled: false, type: 'steepRamp', everyNWeeks: 4, steepRampStepW: 25,
+                tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } }
+  }
 };
 
 // ================================================================
@@ -628,7 +768,7 @@ function addTemplate() {
   state.templates.push({
     id,
     name: `Template ${state.templates.length + 1}`,
-    progression: { repsPerWeek: 0, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+    progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
     phases: [
       { id: uid(), type: 'steady', name: 'Warm-Up',
         durationMin: 5, durationSec: 0,
@@ -661,6 +801,38 @@ function updateTemplateName(id, value) {
 function updateProg(id, field, value) {
   const t = state.templates.find(t => t.id === id);
   if (t) t.progression[field] = +value;
+}
+
+function toggleTestConfig(section, enabled) {
+  state.testConfig[section].enabled = enabled;
+  document.getElementById(`tc-panel-${section}`).style.display = enabled ? '' : 'none';
+}
+
+function updateTestConfig(section, field, value) {
+  state.testConfig[section][field] = (field === 'steepRampStepW' || field === 'everyNWeeks') ? +value : value;
+}
+
+function onTestConfigTypeChange(section, value) {
+  state.testConfig[section].type = value;
+  document.getElementById(`tc-ramp-${section}`).style.display = value === 'steepRamp' ? '' : 'none';
+  document.getElementById(`tc-tte-${section}`).style.display  = value === 'timeTillExhaustion' ? '' : 'none';
+}
+
+function updateTestConfigIref(section, subField, value) {
+  const iref = state.testConfig[section].tteIntensity;
+  if (subField === 'refPoint') {
+    iref.refPoint = value;
+    const wrap = document.getElementById(`iref-tc-${section}`);
+    if (wrap) {
+      const isCustom = value === 'custom';
+      wrap.querySelector('.pct-row').style.display = isCustom ? 'none' : 'flex';
+      wrap.querySelector('.cust-row').style.display = isCustom ? 'flex' : 'none';
+    }
+  } else if (subField === 'percent') {
+    iref.percent = +value;
+  } else if (subField === 'customWatts') {
+    iref.customWatts = +value;
+  }
 }
 
 function toggleTemplateCard(id) {
@@ -772,6 +944,7 @@ function buildIrefHTML(tid, pid, iField, ref) {
     </div>
   </div>`;
 }
+
 
 function buildDurHTML(tid, pid, mField, sField, mVal, sVal) {
   return `<div class="dur-wrap">
@@ -965,6 +1138,16 @@ function renderTemplateBuilder() {
 // ================================================================
 // ASSIGNMENT GRID
 // ================================================================
+function getTestsForWeek(w) {
+  const pt = state.testConfig.periodic;
+  if (!pt.enabled) return [];
+  const n = pt.everyNWeeks || 1;
+  if (n > 0 && (w + 1) % n === 0) {
+    return [pt.type === 'steepRamp' ? 'Steep Ramp' : 'TTE'];
+  }
+  return [];
+}
+
 function renderAssignmentGrid() {
   const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
   const container = document.getElementById('assignment-grid-container');
@@ -976,7 +1159,7 @@ function renderAssignmentGrid() {
   for (let s = 1; s <= sessionsPerWeek; s++) {
     html += `<th>Session ${s}</th>`;
   }
-  html += '</tr></thead><tbody>';
+  html += '<th>Test</th></tr></thead><tbody>';
   for (let w = 0; w < weeks; w++) {
     html += `<tr><td class="week-cell">Week ${w + 1}</td>`;
     for (let s = 0; s < sessionsPerWeek; s++) {
@@ -988,6 +1171,10 @@ function renderAssignmentGrid() {
         ).join('')}
       </select></td>`;
     }
+    const tests = getTestsForWeek(w);
+    html += `<td>${tests.length
+      ? tests.map(l => `<span class="test-badge">${esc(l)}</span>`).join(' ')
+      : '<span style="color:#ccc">—</span>'}</td>`;
     html += '</tr>';
   }
   html += '</tbody></table>';
@@ -1148,12 +1335,42 @@ function renderAthleteSummary() {
   document.getElementById('athlete-summary').style.display = 'block';
 }
 
+function buildTestBlockHTML(tb, ap) {
+  let html = '<div class="test-section">';
+  if (tb.type === 'steepRamp') {
+    html += `<h4>Test &mdash; Steep Ramp Test (${tb.steepRampStepW||25} W/step)</h4>
+    <table class="test-table"><thead><tr>
+      <th>Max Power (W)</th><th>RPM</th><th>Test Duration</th><th>RPE / BORG</th><th>HR max (bpm)</th>
+    </tr></thead><tbody><tr>
+      <td></td><td></td><td></td><td></td><td></td>
+    </tr></tbody></table>`;
+  } else {
+    const pw = calcPower(tb.tteIntensity, ap);
+    html += `<h4>Test &mdash; Time Till Exhaustion @ ${Math.round(pw)} W</h4>
+    <table class="test-table"><thead><tr>
+      <th>Target Power (W)</th><th>Test Duration</th><th>RPE / BORG</th><th>HR max (bpm)</th>
+    </tr></thead><tbody><tr>
+      <td>${Math.round(pw)} W</td><td></td><td></td><td></td>
+    </tr></tbody></table>`;
+  }
+  html += '</div>';
+  return html;
+}
+
 function renderSchedule() {
   const { weeks, sessionsPerWeek, weeklyAssignments } = state.scheduleConfig;
   const container = document.getElementById('schedule-output');
   let html = '';
   let anySession = false;
   renderAthleteSummary();
+
+  // Baseline test before week 1
+  const bl = state.testConfig.baseline;
+  if (bl.enabled) {
+    const ap0 = paramsForWeek(0);
+    html += `<div class="week-section"><h2>Baseline Test</h2>${buildTestBlockHTML(bl, ap0)}</div>`;
+    anySession = true;
+  }
 
   for (let w = 0; w < weeks; w++) {
     const ap = paramsForWeek(w);
@@ -1186,6 +1403,16 @@ function renderSchedule() {
       anySession = true;
     }
 
+    // Periodic test block
+    const pt = state.testConfig.periodic;
+    if (pt.enabled) {
+      const n = pt.everyNWeeks || 1;
+      if (n > 0 && (w + 1) % n === 0) {
+        weekInner += buildTestBlockHTML(pt, ap);
+        anySession = true;
+      }
+    }
+
     if (weekInner) {
       html += `<div class="week-section"><h2>Week ${w + 1}</h2>${weekInner}</div>`;
     }
@@ -1208,6 +1435,7 @@ function initDefaults() {
       id: t1,
       name: 'HIIT Short',
       progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
+
       phases: [
         { id: uid(), type: 'steady', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
@@ -1228,6 +1456,7 @@ function initDefaults() {
       id: t2,
       name: 'HIIT Long',
       progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
+
       phases: [
         { id: uid(), type: 'ramp', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
@@ -1248,6 +1477,7 @@ function initDefaults() {
       id: t3,
       name: 'Aerobic Continuous',
       progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
+
       phases: [
         { id: uid(), type: 'ramp', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
