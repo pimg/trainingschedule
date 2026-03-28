@@ -98,10 +98,11 @@
                          border-radius: 8px; border: 1.5px solid #c5d8f8; }
     .progression-panel h4 { font-size: 0.82rem; font-weight: 700; color: #2c5fa8;
                              margin-bottom: 12px; }
-    .prog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-    .prog-grid label { font-size: 0.78rem; }
-    .prog-grid input { width: 85px; }
-    .prog-hint { font-size: 0.72rem; color: #7a9ccf; margin-top: 3px; }
+    .prog-section-label { font-size: 0.78rem; font-weight: 700; color: #2c5fa8; margin: 10px 0 4px; }
+    .prog-section-label:first-of-type { margin-top: 0; }
+    .prog-row { display: grid; grid-template-columns: repeat(3, minmax(100px, 1fr)); gap: 10px; margin-bottom: 4px; }
+    .prog-row label { font-size: 0.78rem; }
+    .prog-row input { width: 100%; }
 
     /* === ASSIGNMENT GRID === */
     .assignment-grid-wrap { overflow-x: auto; margin-top: 4px; }
@@ -499,20 +500,31 @@ function applyProgression(template, weekIdx) {
       }
       if (phase.type === 'ramp') return phase;
       // interval
-      const newReps = Math.max(1, (phase.reps || 1) + weekIdx * (prog.repsPerWeek || 0));
+      const repsSteps = Math.floor(weekIdx / (prog.repsEveryNWeeks || 1));
+      let newReps = Math.max(1, (phase.reps || 1) + repsSteps * (prog.repsIncrease || 0));
+      if (prog.repsMax) newReps = Math.min(newReps, prog.repsMax);
+
+      const workSteps = Math.floor(weekIdx / (prog.workEveryNWeeks || 1));
       const baseWork = toSec(phase.workDurationMin, phase.workDurationSec);
-      const newWork = Math.max(5, baseWork + weekIdx * (prog.workDurationSecPerWeek || 0));
+      let newWork = Math.max(5, baseWork + workSteps * (prog.workSecIncrease || 0));
+      if (prog.workMaxSec) newWork = Math.min(newWork, prog.workMaxSec);
+
+      const restSteps = Math.floor(weekIdx / (prog.restEveryNWeeks || 1));
       const baseRest = toSec(phase.restDurationMin, phase.restDurationSec);
-      const newRest = Math.max(10, baseRest + weekIdx * (prog.restDurationSecPerWeek || 0));
+      let newRest = Math.max(10, baseRest + restSteps * (prog.restSecIncrease || 0));
+      if (prog.restMaxSec) newRest = Math.min(newRest, prog.restMaxSec);
+
       const { min: wm, sec: ws } = fromSec(newWork);
       const { min: rm, sec: rs } = fromSec(newRest);
-      const powerMult = 1 + weekIdx * ((prog.powerProgressPercent || 0) / 100);
+      const powerSteps = Math.floor(weekIdx / (prog.powerEveryNWeeks || 1));
+      const powerMult = 1 + powerSteps * ((prog.powerProgressPercent || 0) / 100);
       return {
         ...phase,
         reps: newReps,
         workDurationMin: wm, workDurationSec: ws,
         restDurationMin: rm, restDurationSec: rs,
-        _powerMult: powerMult
+        _powerMult: powerMult,
+        _powerMaxWatts: prog.powerMaxWatts || 0
       };
     })
   };
@@ -545,7 +557,9 @@ function expandToRows(template, ap) {
       });
     } else if (phase.type === 'interval') {
       const mult = phase._powerMult || 1;
-      const wp = Math.min(calcPower(phase.workIntensity, ap) * mult, ap.maxPower * 1.1);
+      let wp = calcPower(phase.workIntensity, ap) * mult;
+      if (phase._powerMaxWatts) wp = Math.min(wp, phase._powerMaxWatts);
+      wp = Math.min(wp, ap.maxPower * 1.1);
       const rp = calcPower(phase.restIntensity, ap);
       const wpClamped = Math.min(wp, ap.maxPower);
       for (let i = 1; i <= (phase.reps || 1); i++) {
@@ -867,33 +881,54 @@ function buildTemplateCardHTML(tmpl) {
               onclick="removeTemplate('${tid}')">Delete template</button>
     </div>
     <div id="prog-${esc(tid)}" class="progression-panel" style="display:none">
-      <h4>Interval Block Progression — applied each week to all interval blocks in this template</h4>
-      <div class="prog-grid">
-        <div>
-          <label>Reps increase (per week)</label>
-          <input type="number" min="-10" max="50" value="${prog.repsPerWeek||0}"
-                 oninput="updateProg('${tid}','repsPerWeek',this.value)">
-          <div class="prog-hint">e.g. +1 adds one interval rep per week</div>
-        </div>
-        <div>
-          <label>Work duration (sec/week)</label>
-          <input type="number" min="-300" max="600" value="${prog.workDurationSecPerWeek||0}"
-                 oninput="updateProg('${tid}','workDurationSecPerWeek',this.value)">
-          <div class="prog-hint">e.g. +30 adds 30 s to each interval per week</div>
-        </div>
-        <div>
-          <label>Rest duration (sec/week)</label>
-          <input type="number" min="-300" max="600" value="${prog.restDurationSecPerWeek||0}"
-                 oninput="updateProg('${tid}','restDurationSecPerWeek',this.value)">
-          <div class="prog-hint">negative = shorter rests over time</div>
-        </div>
-        <div>
-          <label>Work power (% per week)</label>
-          <input type="number" min="0" max="20" step="0.5"
-                 value="${prog.powerProgressPercent||0}"
-                 oninput="updateProg('${tid}','powerProgressPercent',this.value)">
-          <div class="prog-hint">e.g. +2 increases work power by 2% per week</div>
-        </div>
+      <h4>Interval Block Progression — applied to all interval blocks in this template</h4>
+      <div class="prog-section-label">Reps</div>
+      <div class="prog-row">
+        <div><label>Increase</label>
+          <input type="number" min="0" max="50" value="${prog.repsIncrease||0}"
+                 oninput="updateProg('${tid}','repsIncrease',this.value)"></div>
+        <div><label>Every N weeks</label>
+          <input type="number" min="1" max="52" value="${prog.repsEveryNWeeks||0}"
+                 oninput="updateProg('${tid}','repsEveryNWeeks',this.value)"></div>
+        <div><label>Maximum (0 = no cap)</label>
+          <input type="number" min="0" max="200" value="${prog.repsMax||0}"
+                 oninput="updateProg('${tid}','repsMax',this.value)"></div>
+      </div>
+      <div class="prog-section-label">Work duration (sec)</div>
+      <div class="prog-row">
+        <div><label>Increase (sec)</label>
+          <input type="number" min="0" max="600" value="${prog.workSecIncrease||0}"
+                 oninput="updateProg('${tid}','workSecIncrease',this.value)"></div>
+        <div><label>Every N weeks</label>
+          <input type="number" min="1" max="52" value="${prog.workEveryNWeeks||0}"
+                 oninput="updateProg('${tid}','workEveryNWeeks',this.value)"></div>
+        <div><label>Maximum (sec, 0 = no cap)</label>
+          <input type="number" min="0" max="7200" value="${prog.workMaxSec||0}"
+                 oninput="updateProg('${tid}','workMaxSec',this.value)"></div>
+      </div>
+      <div class="prog-section-label">Rest duration (sec)</div>
+      <div class="prog-row">
+        <div><label>Increase (sec)</label>
+          <input type="number" min="-300" max="600" value="${prog.restSecIncrease||0}"
+                 oninput="updateProg('${tid}','restSecIncrease',this.value)"></div>
+        <div><label>Every N weeks</label>
+          <input type="number" min="1" max="52" value="${prog.restEveryNWeeks||0}"
+                 oninput="updateProg('${tid}','restEveryNWeeks',this.value)"></div>
+        <div><label>Maximum (sec, 0 = no cap)</label>
+          <input type="number" min="0" max="7200" value="${prog.restMaxSec||0}"
+                 oninput="updateProg('${tid}','restMaxSec',this.value)"></div>
+      </div>
+      <div class="prog-section-label">Work power</div>
+      <div class="prog-row">
+        <div><label>Increase (%)</label>
+          <input type="number" min="0" max="20" step="0.5" value="${prog.powerProgressPercent||0}"
+                 oninput="updateProg('${tid}','powerProgressPercent',this.value)"></div>
+        <div><label>Every N weeks</label>
+          <input type="number" min="1" max="52" value="${prog.powerEveryNWeeks||0}"
+                 oninput="updateProg('${tid}','powerEveryNWeeks',this.value)"></div>
+        <div><label>Maximum (W, 0 = no cap)</label>
+          <input type="number" min="0" max="3000" value="${prog.powerMaxWatts||0}"
+                 oninput="updateProg('${tid}','powerMaxWatts',this.value)"></div>
       </div>
     </div>
     <div class="phase-list">
@@ -1158,7 +1193,7 @@ function initDefaults() {
     {
       id: t1,
       name: 'HIIT Short',
-      progression: { repsPerWeek: 1, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
       phases: [
         { id: uid(), type: 'steady', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
@@ -1178,7 +1213,7 @@ function initDefaults() {
     {
       id: t2,
       name: 'HIIT Long',
-      progression: { repsPerWeek: 0, workDurationSecPerWeek: 30, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
       phases: [
         { id: uid(), type: 'ramp', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
@@ -1198,7 +1233,7 @@ function initDefaults() {
     {
       id: t3,
       name: 'Aerobic Continuous',
-      progression: { repsPerWeek: 0, workDurationSecPerWeek: 0, restDurationSecPerWeek: 0, powerProgressPercent: 0 },
+      progression: { repsIncrease: 0, repsEveryNWeeks: 0, repsMax: 0, workSecIncrease: 0, workEveryNWeeks: 0, workMaxSec: 0, restSecIncrease: 0, restEveryNWeeks: 0, restMaxSec: 0, powerProgressPercent: 0, powerEveryNWeeks: 0, powerMaxWatts: 0 },
       phases: [
         { id: uid(), type: 'ramp', name: 'Warm-Up',
           durationMin: 5, durationSec: 0,
