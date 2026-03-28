@@ -36,6 +36,11 @@
 
     /* === GRID LAYOUTS === */
     .param-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 14px; }
+    .param-grid-row1 { display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)); gap: 14px; margin-bottom: 14px; }
+    .param-grid-row2, .param-grid-row3 { display: grid; grid-template-columns: repeat(2, minmax(130px, 1fr)); gap: 14px; margin-bottom: 14px; }
+    .prog-toggle-row { display: flex; align-items: center; gap: 10px; }
+    .prog-toggle-row label { margin-bottom: 0; font-size: 0.95rem; font-weight: 700; color: #1a1a2e; }
+    input[type="checkbox"].toggle-check { width: 17px; height: 17px; accent-color: #4a90e2; cursor: pointer; }
 
     /* === BUTTONS === */
     button { cursor: pointer; border: none; border-radius: 7px; font-family: inherit;
@@ -235,7 +240,7 @@
     <!-- 1. Athlete Parameters -->
     <div class="card">
       <h2>1. Athlete Parameters</h2>
-      <div class="param-grid">
+      <div class="param-grid-row1">
         <div>
           <label for="restHR">Resting HR (bpm)</label>
           <input type="number" id="restHR" min="30" max="100"
@@ -251,42 +256,67 @@
           <input type="number" id="maxPower" min="1" max="3000"
                  oninput="state.athleteParams.maxPower = +this.value">
         </div>
-        <div>
-          <label for="vt1Power">VT1 Power — week 1 (W)</label>
-          <input type="number" id="vt1Power" min="1" max="3000"
-                 oninput="state.athleteParams.vt1Power = +this.value">
-        </div>
+      </div>
+      <div class="param-grid-row2">
         <div>
           <label for="vt1HR">VT1 HR (bpm)</label>
           <input type="number" id="vt1HR" min="50" max="250"
                  oninput="state.athleteParams.vt1HR = +this.value">
         </div>
         <div>
-          <label for="vt2Power">VT2 Power — week 1 (W)</label>
-          <input type="number" id="vt2Power" min="1" max="3000"
-                 oninput="state.athleteParams.vt2Power = +this.value">
+          <label for="vt1Power">VT1 Power — week 1 (W)</label>
+          <input type="number" id="vt1Power" min="1" max="3000"
+                 oninput="state.athleteParams.vt1Power = +this.value">
         </div>
+      </div>
+      <div class="param-grid-row3">
         <div>
           <label for="vt2HR">VT2 HR (bpm)</label>
           <input type="number" id="vt2HR" min="50" max="250"
                  oninput="state.athleteParams.vt2HR = +this.value">
         </div>
+        <div>
+          <label for="vt2Power">VT2 Power — week 1 (W)</label>
+          <input type="number" id="vt2Power" min="1" max="3000"
+                 oninput="state.athleteParams.vt2Power = +this.value">
+        </div>
       </div>
 
       <hr class="section-divider">
 
-      <h2 style="border:none;padding:0;margin-bottom:8px;font-size:0.95rem">Threshold Progression</h2>
-      <p class="help-text">How much VT1 and VT2 power increases per week as the athlete adapts. Set to 0 for no progression.</p>
-      <div class="param-grid" style="max-width:400px">
-        <div>
-          <label for="vt1Prog">VT1 Power (W/week)</label>
-          <input type="number" id="vt1Prog" min="0" max="50" step="0.5"
-                 oninput="state.athleteParams.vt1ProgressionPerWeek = +this.value">
+      <div class="prog-toggle-row">
+        <input type="checkbox" id="thresholdProgEnabled" class="toggle-check"
+               onchange="onThresholdProgToggle(this.checked)">
+        <label for="thresholdProgEnabled">Threshold Progression</label>
+      </div>
+
+      <div id="threshold-prog-body" style="display:none">
+        <p class="help-text" style="margin-top:8px">
+          How much VT1 and VT2 power increases over time. Enter the watt increment and how many weeks between each step.
+        </p>
+        <div class="param-grid-row2">
+          <div>
+            <label for="vt1ProgWatts">VT1 increase (W)</label>
+            <input type="number" id="vt1ProgWatts" min="0" max="50" step="1"
+                   oninput="state.athleteParams.vt1ProgWatts = +this.value">
+          </div>
+          <div>
+            <label for="vt1ProgEveryNWeeks">VT1 every N weeks</label>
+            <input type="number" id="vt1ProgEveryNWeeks" min="1" max="26" step="1"
+                   oninput="state.athleteParams.vt1ProgEveryNWeeks = +this.value">
+          </div>
         </div>
-        <div>
-          <label for="vt2Prog">VT2 Power (W/week)</label>
-          <input type="number" id="vt2Prog" min="0" max="50" step="0.5"
-                 oninput="state.athleteParams.vt2ProgressionPerWeek = +this.value">
+        <div class="param-grid-row3">
+          <div>
+            <label for="vt2ProgWatts">VT2 increase (W)</label>
+            <input type="number" id="vt2ProgWatts" min="0" max="50" step="1"
+                   oninput="state.athleteParams.vt2ProgWatts = +this.value">
+          </div>
+          <div>
+            <label for="vt2ProgEveryNWeeks">VT2 every N weeks</label>
+            <input type="number" id="vt2ProgEveryNWeeks" min="1" max="26" step="1"
+                   oninput="state.athleteParams.vt2ProgEveryNWeeks = +this.value">
+          </div>
         </div>
       </div>
     </div>
@@ -362,8 +392,11 @@ let state = {
     restHR: 60, maxHR: 190, maxPower: 350,
     vt1Power: 200, vt1HR: 140,
     vt2Power: 280, vt2HR: 168,
-    vt1ProgressionPerWeek: 3,
-    vt2ProgressionPerWeek: 4
+    thresholdProgressionEnabled: false,
+    vt1ProgWatts: 0,
+    vt1ProgEveryNWeeks: 3,
+    vt2ProgWatts: 0,
+    vt2ProgEveryNWeeks: 4
   },
   scheduleConfig: {
     weeks: 8,
@@ -407,11 +440,18 @@ function fromSec(totalSec) {
 // ================================================================
 function paramsForWeek(weekIndex) {
   const ap = state.athleteParams;
-  return {
-    ...ap,
-    vt1Power: ap.vt1Power + weekIndex * (ap.vt1ProgressionPerWeek || 0),
-    vt2Power: ap.vt2Power + weekIndex * (ap.vt2ProgressionPerWeek || 0)
-  };
+  const vt1Inc = ap.thresholdProgressionEnabled
+    ? Math.floor(weekIndex / (ap.vt1ProgEveryNWeeks || 1)) * (ap.vt1ProgWatts || 0)
+    : 0;
+  const vt2Inc = ap.thresholdProgressionEnabled
+    ? Math.floor(weekIndex / (ap.vt2ProgEveryNWeeks || 1)) * (ap.vt2ProgWatts || 0)
+    : 0;
+  return { ...ap, vt1Power: ap.vt1Power + vt1Inc, vt2Power: ap.vt2Power + vt2Inc };
+}
+
+function onThresholdProgToggle(enabled) {
+  state.athleteParams.thresholdProgressionEnabled = enabled;
+  document.getElementById('threshold-prog-body').style.display = enabled ? '' : 'none';
 }
 
 function calcPower(iref, ap) {
@@ -1192,17 +1232,21 @@ function initDefaults() {
 
 function populateForms() {
   const ap = state.athleteParams;
-  document.getElementById('restHR').value    = ap.restHR;
-  document.getElementById('maxHR').value     = ap.maxHR;
-  document.getElementById('maxPower').value  = ap.maxPower;
-  document.getElementById('vt1Power').value  = ap.vt1Power;
-  document.getElementById('vt1HR').value     = ap.vt1HR;
-  document.getElementById('vt2Power').value  = ap.vt2Power;
-  document.getElementById('vt2HR').value     = ap.vt2HR;
-  document.getElementById('vt1Prog').value   = ap.vt1ProgressionPerWeek;
-  document.getElementById('vt2Prog').value   = ap.vt2ProgressionPerWeek;
-  document.getElementById('numWeeks').value  = state.scheduleConfig.weeks;
-  document.getElementById('sessPerWeek').value = state.scheduleConfig.sessionsPerWeek;
+  document.getElementById('restHR').value             = ap.restHR;
+  document.getElementById('maxHR').value              = ap.maxHR;
+  document.getElementById('maxPower').value           = ap.maxPower;
+  document.getElementById('vt1HR').value              = ap.vt1HR;
+  document.getElementById('vt1Power').value           = ap.vt1Power;
+  document.getElementById('vt2HR').value              = ap.vt2HR;
+  document.getElementById('vt2Power').value           = ap.vt2Power;
+  document.getElementById('thresholdProgEnabled').checked = ap.thresholdProgressionEnabled;
+  document.getElementById('threshold-prog-body').style.display = ap.thresholdProgressionEnabled ? '' : 'none';
+  document.getElementById('vt1ProgWatts').value       = ap.vt1ProgWatts;
+  document.getElementById('vt1ProgEveryNWeeks').value = ap.vt1ProgEveryNWeeks;
+  document.getElementById('vt2ProgWatts').value       = ap.vt2ProgWatts;
+  document.getElementById('vt2ProgEveryNWeeks').value = ap.vt2ProgEveryNWeeks;
+  document.getElementById('numWeeks').value           = state.scheduleConfig.weeks;
+  document.getElementById('sessPerWeek').value        = state.scheduleConfig.sessionsPerWeek;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
