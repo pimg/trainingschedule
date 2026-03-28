@@ -62,8 +62,9 @@
     /* === TEMPLATE BUILDER === */
     .template-card { border: 1.5px solid #e4e8f0; border-radius: 10px; padding: 18px;
                      margin-bottom: 16px; background: #f8f9fd; }
-    .template-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-                       margin-bottom: 14px; }
+    .template-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .template-body { margin-top: 14px; }
+    .btn-collapse { min-width: 28px; font-size: 0.75rem; padding: 5px 8px; }
     .template-name-input { flex: 1; min-width: 160px; font-size: 1rem; font-weight: 700;
                            color: #1a1a2e; }
     .phase-list { margin-bottom: 12px; }
@@ -662,6 +663,15 @@ function updateProg(id, field, value) {
   if (t) t.progression[field] = +value;
 }
 
+function toggleTemplateCard(id) {
+  const body = document.getElementById(`tbody-${id}`);
+  const btn  = document.getElementById(`ttoggle-${id}`);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (btn) btn.innerHTML = open ? '&#9660;' : '&#9654;';
+}
+
 function toggleProgPanel(id) {
   const el = document.getElementById(`prog-${id}`);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
@@ -872,6 +882,8 @@ function buildTemplateCardHTML(tmpl) {
   const phasesHTML = tmpl.phases.map(p => buildPhaseHTML(tid, p)).join('');
   return `<div class="template-card" id="tcard-${esc(tid)}">
     <div class="template-header">
+      <button class="btn-secondary btn-small btn-collapse" id="ttoggle-${esc(tid)}"
+              onclick="toggleTemplateCard('${tid}')">&#9654;</button>
       <input class="template-name-input" type="text"
              value="${esc(tmpl.name)}" placeholder="Template name"
              oninput="updateTemplateName('${tid}',this.value)">
@@ -880,6 +892,7 @@ function buildTemplateCardHTML(tmpl) {
       <button class="btn-danger btn-small"
               onclick="removeTemplate('${tid}')">Delete template</button>
     </div>
+    <div id="tbody-${esc(tid)}" class="template-body" style="display:none">
     <div id="prog-${esc(tid)}" class="progression-panel" style="display:none">
       <h4>Interval Block Progression — applied to all interval blocks in this template</h4>
       <div class="prog-section-label">Reps</div>
@@ -936,6 +949,7 @@ function buildTemplateCardHTML(tmpl) {
     </div>
     <button class="btn-secondary btn-small"
             onclick="addPhase('${tid}')">+ Add Phase</button>
+    </div>
   </div>`;
 }
 
