@@ -120,6 +120,10 @@
     .test-badge { font-size: 0.72rem; font-weight: 700; color: #a07000; background: #fff3cc;
                   border: 1px solid #f0c040; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
 
+    /* Attained columns */
+    .attained-col { background: #f7f7f7; min-width: 80px; }
+    thead .attained-col { background: #e8e8e8 !important; font-style: italic; }
+
     /* === ASSIGNMENT GRID === */
     .assignment-grid-wrap { overflow-x: auto; margin-top: 4px; }
     .assignment-table { border-collapse: collapse; min-width: 100%; }
@@ -235,6 +239,8 @@
       .zone-moderate td { background: #fffde7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .zone-high td { background: #ffebee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .rpe-cell { width: 60pt; min-width: 60pt; }
+      .attained-col { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; min-width: 70pt; }
+      thead .attained-col { background: #d8d8d8 !important; }
       .test-section { border-top: 2pt dashed #aaa; margin-top: 10pt; padding: 8pt 0; }
       .test-section h4 { font-size: 9pt; margin-bottom: 4pt; }
       .test-table { border-collapse: collapse; font-size: 9pt; width: 100%; }
@@ -344,9 +350,9 @@
       </div>
     </div>
 
-    <!-- 2. Training Templates -->
+    <!-- 2A. Training Templates -->
     <div class="card">
-      <h2>2. Training Templates</h2>
+      <h2>2A. Training Templates</h2>
       <p class="help-text">Define one or more training session templates. Each template is made up of ordered phases (steady state, progressive ramp, or interval blocks). Interval block progression settings let you automatically increase load across weeks.</p>
       <div id="template-builder"></div>
       <div class="section-actions">
@@ -354,9 +360,9 @@
       </div>
     </div>
 
-    <!-- 2b. Testing -->
+    <!-- 2B. Testing -->
     <div class="card">
-      <h2>2b. Testing</h2>
+      <h2>2B. Testing</h2>
       <p class="help-text">Optionally add fitness tests to your plan. The baseline test appears before Week 1. Periodic tests appear every N weeks in the schedule.</p>
 
       <!-- Baseline test -->
@@ -366,47 +372,64 @@
         <label for="tc-baseline-enabled">Baseline Test (before Week 1)</label>
       </div>
       <div id="tc-panel-baseline" class="test-block-panel" style="display:none">
-        <div style="display:flex; gap:18px; margin-bottom:10px">
-          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
-            <input type="checkbox" id="tc-baseline-ramp" checked
+        <!-- Steep Ramp row -->
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem; white-space:nowrap; min-width:160px">
+            <input type="checkbox" id="tc-baseline-ramp"
                    onchange="toggleTestType('baseline','steepRamp',this.checked)">
             Steep Ramp Test
           </label>
-          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+          <div id="tc-ramp-baseline" style="display:none; align-items:center; gap:8px">
+            <label style="font-size:0.78rem; margin:0; white-space:nowrap">Step size:</label>
+            <select onchange="updateTestConfig('baseline','steepRampStepW',this.value)">
+              <option value="5">5 W</option>
+              <option value="10">10 W</option>
+              <option value="15">15 W</option>
+              <option value="25" selected>25 W</option>
+              <option value="30">30 W</option>
+              <option value="35">35 W</option>
+            </select>
+          </div>
+        </div>
+        <!-- TTE row -->
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem; white-space:nowrap; min-width:160px">
             <input type="checkbox" id="tc-baseline-tte"
                    onchange="toggleTestType('baseline','tte',this.checked)">
             Time Till Exhaustion
           </label>
-        </div>
-        <div id="tc-ramp-baseline">
-          <label style="font-size:0.78rem">Step size (W)</label>
-          <select onchange="updateTestConfig('baseline','steepRampStepW',this.value)">
-            <option value="5">5 W</option>
-            <option value="10">10 W</option>
-            <option value="15">15 W</option>
-            <option value="25" selected>25 W</option>
-            <option value="30">30 W</option>
-            <option value="35">35 W</option>
-          </select>
-        </div>
-        <div id="tc-tte-baseline" style="display:none">
-          <label style="font-size:0.78rem">TTE target intensity</label>
-          <div class="iref-wrap" id="iref-tc-baseline">
-            <select onchange="updateTestConfigIref('baseline','refPoint',this.value)">
-              <option value="vt1">% of VT1</option>
-              <option value="vt2" selected>% of VT2</option>
-              <option value="max">% of Max Power</option>
-              <option value="custom">Custom (W)</option>
-            </select>
-            <div class="iref-val-row pct-row" style="display:flex">
-              <input type="number" min="0" max="250" value="100"
-                     oninput="updateTestConfigIref('baseline','percent',this.value)">
-              <span class="iref-unit">%</span>
+          <div id="tc-tte-baseline" style="display:none; align-items:center; gap:10px; flex-wrap:wrap">
+            <div style="display:flex; align-items:center; gap:6px">
+              <label style="font-size:0.78rem; margin:0; white-space:nowrap">Duration:</label>
+              <select onchange="updateTestConfig('baseline','tteDurationMin',+this.value)">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="15">15 min</option>
+                <option value="20" selected>20 min</option>
+                <option value="25">25 min</option>
+                <option value="30">30 min</option>
+              </select>
             </div>
-            <div class="iref-val-row cust-row" style="display:none">
-              <input type="number" min="0" value="0"
-                     oninput="updateTestConfigIref('baseline','customWatts',this.value)">
-              <span class="iref-unit">W</span>
+            <div style="display:flex; align-items:center; gap:6px">
+              <label style="font-size:0.78rem; margin:0; white-space:nowrap">Intensity:</label>
+              <div class="iref-wrap" id="iref-tc-baseline">
+                <select onchange="updateTestConfigIref('baseline','refPoint',this.value)">
+                  <option value="vt1">% of VT1</option>
+                  <option value="vt2" selected>% of VT2</option>
+                  <option value="max">% of Max Power</option>
+                  <option value="custom">Custom (W)</option>
+                </select>
+                <div class="iref-val-row pct-row" style="display:flex">
+                  <input type="number" min="0" max="250" value="100"
+                         oninput="updateTestConfigIref('baseline','percent',this.value)">
+                  <span class="iref-unit">%</span>
+                </div>
+                <div class="iref-val-row cust-row" style="display:none">
+                  <input type="number" min="0" value="0"
+                         oninput="updateTestConfigIref('baseline','customWatts',this.value)">
+                  <span class="iref-unit">W</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -428,47 +451,64 @@
                    oninput="updateTestConfig('periodic','everyNWeeks',this.value)">
           </div>
         </div>
-        <div style="display:flex; gap:18px; margin-bottom:10px">
-          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
-            <input type="checkbox" id="tc-periodic-ramp" checked
+        <!-- Steep Ramp row -->
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem; white-space:nowrap; min-width:160px">
+            <input type="checkbox" id="tc-periodic-ramp"
                    onchange="toggleTestType('periodic','steepRamp',this.checked)">
             Steep Ramp Test
           </label>
-          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+          <div id="tc-ramp-periodic" style="display:none; align-items:center; gap:8px">
+            <label style="font-size:0.78rem; margin:0; white-space:nowrap">Step size:</label>
+            <select onchange="updateTestConfig('periodic','steepRampStepW',this.value)">
+              <option value="5">5 W</option>
+              <option value="10">10 W</option>
+              <option value="15">15 W</option>
+              <option value="25" selected>25 W</option>
+              <option value="30">30 W</option>
+              <option value="35">35 W</option>
+            </select>
+          </div>
+        </div>
+        <!-- TTE row -->
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem; white-space:nowrap; min-width:160px">
             <input type="checkbox" id="tc-periodic-tte"
                    onchange="toggleTestType('periodic','tte',this.checked)">
             Time Till Exhaustion
           </label>
-        </div>
-        <div id="tc-ramp-periodic">
-          <label style="font-size:0.78rem">Step size (W)</label>
-          <select onchange="updateTestConfig('periodic','steepRampStepW',this.value)">
-            <option value="5">5 W</option>
-            <option value="10">10 W</option>
-            <option value="15">15 W</option>
-            <option value="25" selected>25 W</option>
-            <option value="30">30 W</option>
-            <option value="35">35 W</option>
-          </select>
-        </div>
-        <div id="tc-tte-periodic" style="display:none">
-          <label style="font-size:0.78rem">TTE target intensity</label>
-          <div class="iref-wrap" id="iref-tc-periodic">
-            <select onchange="updateTestConfigIref('periodic','refPoint',this.value)">
-              <option value="vt1">% of VT1</option>
-              <option value="vt2" selected>% of VT2</option>
-              <option value="max">% of Max Power</option>
-              <option value="custom">Custom (W)</option>
-            </select>
-            <div class="iref-val-row pct-row" style="display:flex">
-              <input type="number" min="0" max="250" value="100"
-                     oninput="updateTestConfigIref('periodic','percent',this.value)">
-              <span class="iref-unit">%</span>
+          <div id="tc-tte-periodic" style="display:none; align-items:center; gap:10px; flex-wrap:wrap">
+            <div style="display:flex; align-items:center; gap:6px">
+              <label style="font-size:0.78rem; margin:0; white-space:nowrap">Duration:</label>
+              <select onchange="updateTestConfig('periodic','tteDurationMin',+this.value)">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="15">15 min</option>
+                <option value="20" selected>20 min</option>
+                <option value="25">25 min</option>
+                <option value="30">30 min</option>
+              </select>
             </div>
-            <div class="iref-val-row cust-row" style="display:none">
-              <input type="number" min="0" value="0"
-                     oninput="updateTestConfigIref('periodic','customWatts',this.value)">
-              <span class="iref-unit">W</span>
+            <div style="display:flex; align-items:center; gap:6px">
+              <label style="font-size:0.78rem; margin:0; white-space:nowrap">Intensity:</label>
+              <div class="iref-wrap" id="iref-tc-periodic">
+                <select onchange="updateTestConfigIref('periodic','refPoint',this.value)">
+                  <option value="vt1">% of VT1</option>
+                  <option value="vt2" selected>% of VT2</option>
+                  <option value="max">% of Max Power</option>
+                  <option value="custom">Custom (W)</option>
+                </select>
+                <div class="iref-val-row pct-row" style="display:flex">
+                  <input type="number" min="0" max="250" value="100"
+                         oninput="updateTestConfigIref('periodic','percent',this.value)">
+                  <span class="iref-unit">%</span>
+                </div>
+                <div class="iref-val-row cust-row" style="display:none">
+                  <input type="number" min="0" value="0"
+                         oninput="updateTestConfigIref('periodic','customWatts',this.value)">
+                  <span class="iref-unit">W</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -513,7 +553,14 @@
     <div class="card">
       <div class="output-toolbar">
         <h2>Training Schedule</h2>
-        <button class="btn-pdf no-print" onclick="window.print()">Print / Save as PDF</button>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+          <label class="no-print" style="font-size:0.85rem; font-weight:normal; display:flex; align-items:center; gap:6px; cursor:pointer">
+            <input type="checkbox" id="show-attained-cols"
+                   onchange="state.scheduleConfig.showAttainedCols = this.checked; regenerateIfVisible()">
+            Show attained columns (Power &amp; HR)
+          </label>
+          <button class="btn-pdf no-print" onclick="window.print()">Print / Save as PDF</button>
+        </div>
       </div>
       <div class="zone-legend">
         <span class="zone-legend-item"><span class="zone-dot dot-low"></span> Zone 1 — Low intensity (below VT1)</span>
@@ -545,14 +592,15 @@ let state = {
   scheduleConfig: {
     weeks: 8,
     sessionsPerWeek: 2,
-    weeklyAssignments: []
+    weeklyAssignments: [],
+    showAttainedCols: false
   },
   templates: [],
   testConfig: {
-    baseline: { enabled: false, includeSteepRamp: true, includeTTE: false, steepRampStepW: 25,
-                tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } },
-    periodic:  { enabled: false, includeSteepRamp: true, includeTTE: false, everyNWeeks: 4, steepRampStepW: 25,
-                tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } }
+    baseline: { enabled: false, includeSteepRamp: false, includeTTE: false, steepRampStepW: 25,
+                tteDurationMin: 20, tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } },
+    periodic:  { enabled: false, includeSteepRamp: false, includeTTE: false, everyNWeeks: 4, steepRampStepW: 25,
+                tteDurationMin: 20, tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } }
   }
 };
 
@@ -823,10 +871,10 @@ function updateTestConfig(section, field, value) {
 function toggleTestType(section, testType, checked) {
   if (testType === 'steepRamp') {
     state.testConfig[section].includeSteepRamp = checked;
-    document.getElementById(`tc-ramp-${section}`).style.display = checked ? '' : 'none';
+    document.getElementById(`tc-ramp-${section}`).style.display = checked ? 'flex' : 'none';
   } else {
     state.testConfig[section].includeTTE = checked;
-    document.getElementById(`tc-tte-${section}`).style.display = checked ? '' : 'none';
+    document.getElementById(`tc-tte-${section}`).style.display = checked ? 'flex' : 'none';
   }
 }
 
@@ -1277,12 +1325,15 @@ function generateSchedule() {
 function buildSessionTableHTML(rows) {
   const totalSec = rows.reduce((sum, r) => sum + (r.rawDurSec || 0), 0);
   const { min: tm, sec: ts } = fromSec(totalSec);
+  const att = state.scheduleConfig.showAttainedCols;
   let html = `<table class="schedule-table">
     <thead><tr>
       <th>Phase</th>
       <th>Duration</th>
       <th>Target Power (W)</th>
+      ${att ? '<th class="attained-col">Attained Power (W)</th>' : ''}
       <th>Target HR (bpm)</th>
+      ${att ? '<th class="attained-col">Attained HR (bpm)</th>' : ''}
       <th>Zone</th>
       <th>RPE</th>
     </tr></thead><tbody>`;
@@ -1292,17 +1343,26 @@ function buildSessionTableHTML(rows) {
       <td>${esc(row.label)}</td>
       <td>${esc(row.dur)}</td>
       <td>${esc(row.powerStr)}</td>
+      ${att ? '<td class="attained-col"></td>' : ''}
       <td>${esc(row.hrStr)}</td>
+      ${att ? '<td class="attained-col"></td>' : ''}
       <td>${esc(row.zone)}</td>
       <td class="rpe-cell"></td>
     </tr>`;
   });
+  const totalColspan = att ? 6 : 4;
   html += `</tbody><tfoot><tr class="total-row">
     <td>Total session time</td>
     <td>${fmtDur(tm, ts)}</td>
-    <td colspan="4"></td>
+    <td colspan="${totalColspan}"></td>
   </tr></tfoot></table>`;
   return html;
+}
+
+function regenerateIfVisible() {
+  if (document.getElementById('output-section').style.display !== 'none') {
+    generateSchedule();
+  }
 }
 
 function renderAthleteSummary() {
@@ -1362,11 +1422,12 @@ function buildTestBlockHTML(tb, ap) {
   }
   if (tb.includeTTE) {
     const pw = calcPower(tb.tteIntensity, ap);
+    const dur = tb.tteDurationMin || 20;
     html += `<h4>Test &mdash; Time Till Exhaustion @ ${Math.round(pw)} W</h4>
     <table class="test-table"><thead><tr>
       <th>Target Power (W)</th><th>Test Duration</th><th>RPE / BORG</th><th>HR max (bpm)</th>
     </tr></thead><tbody><tr>
-      <td>${Math.round(pw)} W</td><td></td><td></td><td></td>
+      <td>${Math.round(pw)} W</td><td>${dur} min</td><td></td><td></td>
     </tr></tbody></table>`;
   }
   html += '</div>';
