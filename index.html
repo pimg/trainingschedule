@@ -366,14 +366,17 @@
         <label for="tc-baseline-enabled">Baseline Test (before Week 1)</label>
       </div>
       <div id="tc-panel-baseline" class="test-block-panel" style="display:none">
-        <div class="test-block-row">
-          <div>
-            <label>Test type</label>
-            <select onchange="onTestConfigTypeChange('baseline', this.value)">
-              <option value="steepRamp">Steep Ramp Test</option>
-              <option value="timeTillExhaustion">Time Till Exhaustion</option>
-            </select>
-          </div>
+        <div style="display:flex; gap:18px; margin-bottom:10px">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+            <input type="checkbox" id="tc-baseline-ramp" checked
+                   onchange="toggleTestType('baseline','steepRamp',this.checked)">
+            Steep Ramp Test
+          </label>
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+            <input type="checkbox" id="tc-baseline-tte"
+                   onchange="toggleTestType('baseline','tte',this.checked)">
+            Time Till Exhaustion
+          </label>
         </div>
         <div id="tc-ramp-baseline">
           <label style="font-size:0.78rem">Step size (W)</label>
@@ -387,7 +390,7 @@
           </select>
         </div>
         <div id="tc-tte-baseline" style="display:none">
-          <label style="font-size:0.78rem">Target intensity</label>
+          <label style="font-size:0.78rem">TTE target intensity</label>
           <div class="iref-wrap" id="iref-tc-baseline">
             <select onchange="updateTestConfigIref('baseline','refPoint',this.value)">
               <option value="vt1">% of VT1</option>
@@ -418,19 +421,24 @@
         <label for="tc-periodic-enabled">Periodic Test</label>
       </div>
       <div id="tc-panel-periodic" class="test-block-panel" style="display:none">
-        <div class="test-block-row">
+        <div class="test-block-row" style="margin-bottom:10px">
           <div>
             <label>Every N weeks</label>
             <input type="number" min="1" max="52" value="4"
                    oninput="updateTestConfig('periodic','everyNWeeks',this.value)">
           </div>
-          <div>
-            <label>Test type</label>
-            <select onchange="onTestConfigTypeChange('periodic', this.value)">
-              <option value="steepRamp">Steep Ramp Test</option>
-              <option value="timeTillExhaustion">Time Till Exhaustion</option>
-            </select>
-          </div>
+        </div>
+        <div style="display:flex; gap:18px; margin-bottom:10px">
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+            <input type="checkbox" id="tc-periodic-ramp" checked
+                   onchange="toggleTestType('periodic','steepRamp',this.checked)">
+            Steep Ramp Test
+          </label>
+          <label style="font-weight:normal; display:flex; align-items:center; gap:6px; font-size:0.9rem">
+            <input type="checkbox" id="tc-periodic-tte"
+                   onchange="toggleTestType('periodic','tte',this.checked)">
+            Time Till Exhaustion
+          </label>
         </div>
         <div id="tc-ramp-periodic">
           <label style="font-size:0.78rem">Step size (W)</label>
@@ -444,7 +452,7 @@
           </select>
         </div>
         <div id="tc-tte-periodic" style="display:none">
-          <label style="font-size:0.78rem">Target intensity</label>
+          <label style="font-size:0.78rem">TTE target intensity</label>
           <div class="iref-wrap" id="iref-tc-periodic">
             <select onchange="updateTestConfigIref('periodic','refPoint',this.value)">
               <option value="vt1">% of VT1</option>
@@ -541,9 +549,9 @@ let state = {
   },
   templates: [],
   testConfig: {
-    baseline: { enabled: false, type: 'steepRamp', steepRampStepW: 25,
+    baseline: { enabled: false, includeSteepRamp: true, includeTTE: false, steepRampStepW: 25,
                 tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } },
-    periodic:  { enabled: false, type: 'steepRamp', everyNWeeks: 4, steepRampStepW: 25,
+    periodic:  { enabled: false, includeSteepRamp: true, includeTTE: false, everyNWeeks: 4, steepRampStepW: 25,
                 tteIntensity: { refPoint: 'vt2', percent: 100, customWatts: 0 } }
   }
 };
@@ -812,10 +820,14 @@ function updateTestConfig(section, field, value) {
   state.testConfig[section][field] = (field === 'steepRampStepW' || field === 'everyNWeeks') ? +value : value;
 }
 
-function onTestConfigTypeChange(section, value) {
-  state.testConfig[section].type = value;
-  document.getElementById(`tc-ramp-${section}`).style.display = value === 'steepRamp' ? '' : 'none';
-  document.getElementById(`tc-tte-${section}`).style.display  = value === 'timeTillExhaustion' ? '' : 'none';
+function toggleTestType(section, testType, checked) {
+  if (testType === 'steepRamp') {
+    state.testConfig[section].includeSteepRamp = checked;
+    document.getElementById(`tc-ramp-${section}`).style.display = checked ? '' : 'none';
+  } else {
+    state.testConfig[section].includeTTE = checked;
+    document.getElementById(`tc-tte-${section}`).style.display = checked ? '' : 'none';
+  }
 }
 
 function updateTestConfigIref(section, subField, value) {
@@ -1143,7 +1155,10 @@ function getTestsForWeek(w) {
   if (!pt.enabled) return [];
   const n = pt.everyNWeeks || 1;
   if (n > 0 && (w + 1) % n === 0) {
-    return [pt.type === 'steepRamp' ? 'Steep Ramp' : 'TTE'];
+    const labels = [];
+    if (pt.includeSteepRamp) labels.push('Steep Ramp');
+    if (pt.includeTTE) labels.push('TTE');
+    return labels;
   }
   return [];
 }
@@ -1337,14 +1352,15 @@ function renderAthleteSummary() {
 
 function buildTestBlockHTML(tb, ap) {
   let html = '<div class="test-section">';
-  if (tb.type === 'steepRamp') {
+  if (tb.includeSteepRamp) {
     html += `<h4>Test &mdash; Steep Ramp Test (${tb.steepRampStepW||25} W/step)</h4>
     <table class="test-table"><thead><tr>
       <th>Max Power (W)</th><th>RPM</th><th>Test Duration</th><th>RPE / BORG</th><th>HR max (bpm)</th>
     </tr></thead><tbody><tr>
       <td></td><td></td><td></td><td></td><td></td>
     </tr></tbody></table>`;
-  } else {
+  }
+  if (tb.includeTTE) {
     const pw = calcPower(tb.tteIntensity, ap);
     html += `<h4>Test &mdash; Time Till Exhaustion @ ${Math.round(pw)} W</h4>
     <table class="test-table"><thead><tr>
